@@ -1,23 +1,37 @@
+# Virtual environments
 .venv/
 venv/
 
+# Python cache / compiled files
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 
+# Environment variables
 .env
 .env.*
 
+# IDEs / editors
 .idea/
 .vscode/
 
+# Test / type-check caches
 .pytest_cache/
 .mypy_cache/
 
+# Build outputs
 dist/
 build/
 
+# Local databases
 *.sqlite3
 *.db
+
+# Local backups
+app.zip
+
+# System files
 desktop.ini
+.DS_Store
+Thumbs.db

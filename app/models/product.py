@@ -60,6 +60,10 @@ class Product(Base):
         String(500),
         nullable=True,
     )
+    cover_image_public_id: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
 
     category_id: Mapped[int] = mapped_column(
         ForeignKey(

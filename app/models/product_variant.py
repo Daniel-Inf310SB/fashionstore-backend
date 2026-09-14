@@ -14,9 +14,36 @@ class ProductVariant(Base):
     sku: Mapped[str] = mapped_column(String(80), unique=True, nullable=False, index=True)
     additional_price: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0, nullable=False)
     image_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    cloudinary_public_id: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
     product = relationship("Product", back_populates="variants")
     size = relationship("Size", back_populates="product_variants")
     color = relationship("Color", back_populates="product_variants")
+    # =========================================================
+    # ITERACIÓN 2 - RELACIONES COMERCIALES
+    # =========================================================
+
+    reservation_items = relationship(
+        "ReservationItem",
+        back_populates="product_variant",
+    )
+
+    cart_items = relationship(
+        "CartItem",
+        back_populates="product_variant",
+    )
+
+    order_items = relationship(
+        "OrderItem",
+        back_populates="product_variant",
+    )
+
+    sale_items = relationship(
+        "SaleItem",
+        back_populates="product_variant",
+    )

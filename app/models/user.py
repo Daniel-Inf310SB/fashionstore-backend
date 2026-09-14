@@ -171,3 +171,42 @@ class User(Base):
         "AuditLog",
         back_populates="user",
     )
+    # =========================================================
+    # ITERACIÓN 2 - RELACIONES COMERCIALES
+    # =========================================================
+
+    reservations = relationship(
+        "Reservation",
+        back_populates="customer",
+        foreign_keys="Reservation.customer_id",
+    )
+
+    shopping_carts = relationship(
+        "ShoppingCart",
+        back_populates="customer",
+        foreign_keys="ShoppingCart.customer_id",
+    )
+
+    orders = relationship(
+        "Order",
+        back_populates="customer",
+        foreign_keys="Order.customer_id",
+    )
+
+    sales_as_customer = relationship(
+        "Sale",
+        back_populates="customer",
+        foreign_keys="Sale.customer_id",
+    )
+
+    sales_as_cashier = relationship(
+        "Sale",
+        back_populates="cashier",
+        foreign_keys="Sale.cashier_id",
+    )
+
+    payments = relationship(
+        "Payment",
+        back_populates="user",
+        foreign_keys="Payment.user_id",
+    )

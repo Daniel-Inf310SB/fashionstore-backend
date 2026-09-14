@@ -1,7 +1,18 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, UniqueConstraint, func
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Index,
+    text,
+    func,
+)
+from sqlalchemy.orm import (
+    Mapped,
+    mapped_column,
+    relationship,
+)
 
 from app.database.base import Base
 
@@ -9,12 +20,19 @@ from app.database.base import Base
 class EmployeeBranch(Base):
     __tablename__ = "employee_branches"
 
+    # =========================================================
+    # UN EMPLEADO SOLO PUEDE TENER
+    # UNA SUCURSAL ACTIVA A LA VEZ
+    # =========================================================
+
     __table_args__ = (
-        UniqueConstraint(
+        Index(
+            "uq_employee_one_active_branch",
             "user_id",
-            "branch_id",
-            "is_active",
-            name="uq_employee_branch_active",
+            unique=True,
+            postgresql_where=text(
+                "is_active = true"
+            ),
         ),
     )
 

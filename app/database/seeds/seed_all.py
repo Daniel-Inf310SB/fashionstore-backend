@@ -6,6 +6,7 @@ from app.database.seeds.seed_locations import seed_locations
 from app.database.seeds.seed_catalog import seed_catalog
 from app.database.seeds.seed_providers import seed_providers
 from app.database.seeds.seed_inventory import seed_inventory
+from app.database.seeds.seed_commerce import seed_commerce
 
 
 def run_seed():
@@ -26,7 +27,6 @@ def run_seed():
         )
         print("")
 
-
         # =====================================================
         # MÓDULO 1
         # Roles, permisos y administrador
@@ -35,7 +35,6 @@ def run_seed():
         seed_auth(
             db
         )
-
 
         # =====================================================
         # MÓDULO 1
@@ -46,7 +45,6 @@ def run_seed():
             db
         )
 
-
         # =====================================================
         # MÓDULO 2
         # Ciudades, sucursales y asignaciones
@@ -55,7 +53,6 @@ def run_seed():
         seed_locations(
             db
         )
-
 
         # =====================================================
         # MÓDULO 3
@@ -69,7 +66,7 @@ def run_seed():
         # - temporadas
         # - colecciones
         # - promociones
-        # - 200 productos
+        # - productos
         # - variantes talla/color
         # - imágenes
         # - relaciones
@@ -79,7 +76,6 @@ def run_seed():
         seed_catalog(
             db
         )
-
 
         # =====================================================
         # MÓDULO 4
@@ -97,7 +93,6 @@ def run_seed():
         seed_providers(
             db
         )
-
 
         # =====================================================
         # MÓDULO 5
@@ -119,6 +114,33 @@ def run_seed():
             db
         )
 
+        # =====================================================
+        # ITERACIÓN 2
+        # MÓDULOS 7 AL 11
+        #
+        # Incluye:
+        # - clientes
+        # - reservas
+        # - prendas reservadas
+        # - carritos
+        # - compras digitales
+        # - ventas presenciales
+        # - pagos electrónicos
+        # - pagos en caja
+        # - movimientos SALE de inventario
+        # - comprobantes
+        # - items históricos de comprobante
+        # =====================================================
+
+        seed_commerce(
+            db
+        )
+
+        # =====================================================
+        # COMMIT GENERAL
+        # =====================================================
+
+        db.commit()
 
         print("")
         print(
@@ -131,7 +153,6 @@ def run_seed():
             "======================================"
         )
         print("")
-
 
     except Exception as exc:
 
@@ -154,7 +175,6 @@ def run_seed():
         )
 
         raise
-
 
     finally:
 

@@ -86,3 +86,21 @@ class Branch(Base):
         back_populates="branch",
         cascade="all, delete-orphan",
     )
+    # =========================================================
+    # ITERACIÓN 2 - RELACIONES COMERCIALES
+    # =========================================================
+
+    reservations = relationship(
+        "Reservation",
+        back_populates="branch",
+    )
+
+    orders = relationship(
+        "Order",
+        back_populates="branch",
+    )
+
+    sales = relationship(
+        "Sale",
+        back_populates="branch",
+    )

@@ -59,3 +59,49 @@ from app.models.supplier_availability import SupplierAvailability
 
 from app.models.inventory import Inventory
 from app.models.inventory_movement import InventoryMovement
+
+# =========================================================
+# MÓDULO 7 - RESERVAS
+# =========================================================
+
+from app.models.reservation import Reservation
+from app.models.reservation_item import ReservationItem
+
+
+# =========================================================
+# MÓDULO 8 - CARRITO
+# =========================================================
+
+from app.models.shopping_cart import ShoppingCart
+from app.models.cart_item import CartItem
+
+
+# =========================================================
+# MÓDULO 9 - COMPRAS DIGITALES
+# =========================================================
+
+from app.models.order import Order
+from app.models.order_item import OrderItem
+
+
+# =========================================================
+# MÓDULO 10 - VENTAS PRESENCIALES
+# =========================================================
+
+from app.models.sale import Sale
+from app.models.sale_item import SaleItem
+
+
+# =========================================================
+# MÓDULO 11 - PAGOS
+# =========================================================
+
+from app.models.payment import Payment
+
+
+# =========================================================
+# COMPROBANTES DE COMPRA
+# =========================================================
+
+from app.models.receipt import Receipt
+from app.models.receipt_item import ReceiptItem

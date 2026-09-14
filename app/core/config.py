@@ -2,10 +2,22 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    app_name: str = "Sonelya API"
+    # =========================
+    # APP
+    # =========================
+
+    app_name: str = "FashionStore API"
     app_version: str = "0.1.0"
 
+    # =========================
+    # DATABASE
+    # =========================
+
     database_url: str
+
+    # =========================
+    # GOOGLE
+    # =========================
 
     google_client_id: str
 
@@ -25,7 +37,19 @@ class Settings(BaseSettings):
 
     brevo_api_key: str
     brevo_sender_email: str
-    brevo_sender_name: str = "Sonelya"
+    brevo_sender_name: str = "FashionStore"
+
+    # =========================
+    # CLOUDINARY
+    # =========================
+
+    cloudinary_cloud_name: str
+    cloudinary_api_key: str
+    cloudinary_api_secret: str
+
+    # =========================
+    # CONFIG
+    # =========================
 
     model_config = SettingsConfigDict(
         env_file=".env",
