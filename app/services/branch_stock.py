@@ -22,8 +22,69 @@ from app.models.product_variant import (
     ProductVariant,
 )
 
+from app.models.user import User
+
+from app.services.branch_service import (
+    BranchService,
+)
+
 
 class BranchStockService:
+
+    ADMIN_ROLES = {
+        "ADMINISTRADOR",
+        "SUPERADMIN",
+    }
+
+    BRANCH_ROLES = {
+        "ENCARGADO_SUCURSAL",
+        "CAJERO",
+    }
+
+    # =====================================================
+    # RESOLVER SUCURSAL SEGÚN ROL
+    # =====================================================
+
+    @staticmethod
+    def _resolve_branch_scope(
+        db: Session,
+        current_user: User,
+        requested_branch_id: int | None = None,
+    ) -> int | None:
+
+        role = (
+            current_user.role.name.strip().upper()
+            if current_user.role is not None
+            else ""
+        )
+
+        if role in BranchStockService.ADMIN_ROLES:
+            return requested_branch_id
+
+        if role in BranchStockService.BRANCH_ROLES:
+
+            branch = BranchService.get_my_branch(
+                db=db,
+                user_id=current_user.id,
+            )
+
+            if (
+                requested_branch_id is not None
+                and
+                requested_branch_id != branch.id
+            ):
+                raise PermissionError(
+                    "No puedes consultar existencias "
+                    "de otra sucursal."
+                )
+
+            return branch.id
+
+        raise PermissionError(
+            "Tu rol no puede consultar existencias "
+            "por sucursal."
+        )
+
 
     # =====================================================
     # QUERY BASE
@@ -93,6 +154,8 @@ class BranchStockService:
     def get_branch_stock(
         db: Session,
 
+        current_user: User,
+
         page: int = 1,
 
         page_size: int = 10,
@@ -127,6 +190,16 @@ class BranchStockService:
                 page_size,
                 100,
             ),
+        )
+
+
+        effective_branch_id = (
+            BranchStockService
+            ._resolve_branch_scope(
+                db=db,
+                current_user=current_user,
+                requested_branch_id=branch_id,
+            )
         )
 
 
@@ -183,12 +256,12 @@ class BranchStockService:
         # SUCURSAL
         # =================================================
 
-        if branch_id is not None:
+        if effective_branch_id is not None:
 
             query = query.filter(
                 Inventory.branch_id
                 ==
-                branch_id
+                effective_branch_id
             )
 
 

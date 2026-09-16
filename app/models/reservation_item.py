@@ -13,7 +13,11 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import (
+    Mapped,
+    mapped_column,
+    relationship,
+)
 
 from app.database.base import Base
 
@@ -36,7 +40,14 @@ class ReservationItem(Base):
             name="ck_reservation_item_unit_price_nonnegative",
         ),
         CheckConstraint(
-            "status IN ('RESERVED', 'RELEASED', 'CONSUMED')",
+            """
+            status IN (
+                'PENDING',
+                'RESERVED',
+                'RELEASED',
+                'CONSUMED'
+            )
+            """,
             name="ck_reservation_item_status",
         ),
     )
@@ -47,13 +58,19 @@ class ReservationItem(Base):
     )
 
     reservation_id: Mapped[int] = mapped_column(
-        ForeignKey("reservations.id", ondelete="CASCADE"),
+        ForeignKey(
+            "reservations.id",
+            ondelete="CASCADE",
+        ),
         nullable=False,
         index=True,
     )
 
     product_variant_id: Mapped[int] = mapped_column(
-        ForeignKey("product_variants.id", ondelete="RESTRICT"),
+        ForeignKey(
+            "product_variants.id",
+            ondelete="RESTRICT",
+        ),
         nullable=False,
         index=True,
     )
@@ -68,11 +85,29 @@ class ReservationItem(Base):
         nullable=False,
     )
 
+    # =====================================================
+    # ESTADO CU29
+    #
+    # PENDING:
+    # Solicitud registrada, aún no apartada físicamente.
+    #
+    # RESERVED:
+    # Encargado confirmó el apartado físico.
+    #
+    # RELEASED:
+    # Prenda liberada por cancelación o vencimiento.
+    #
+    # CONSUMED:
+    # Prenda utilizada definitivamente por una operación
+    # posterior (venta / atención).
+    # =====================================================
+
     status: Mapped[str] = mapped_column(
         String(20),
         nullable=False,
-        default="RESERVED",
-        server_default="RESERVED",
+        default="PENDING",
+        server_default="PENDING",
+        index=True,
     )
 
     created_at: Mapped[datetime] = mapped_column(

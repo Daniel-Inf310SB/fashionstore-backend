@@ -15,6 +15,7 @@ from app.database.session import (
 
 from app.dependencies.employee_branches import (
     require_employee_branches_manage,
+    require_employee_branches_view,
 )
 
 from app.models.user import User
@@ -140,6 +141,75 @@ def get_available_employees(
             role_id=role_id,
         )
     )
+
+
+# =========================================================
+# CAJEROS DE MI SUCURSAL
+#
+# ENCARGADO_SUCURSAL:
+# - solo lectura
+# - obtiene su sucursal desde EmployeeBranch
+# - no acepta branch_id
+# - devuelve únicamente cajeros activos
+#
+# IMPORTANTE:
+# Debe estar antes de /{assignment_id}
+# =========================================================
+
+@router.get(
+    "/my-branch",
+    response_model=
+        EmployeeBranchListResponse,
+)
+def get_my_branch_cashiers(
+    page: int = Query(
+        default=1,
+        ge=1,
+    ),
+    page_size: int = Query(
+        default=10,
+        ge=1,
+        le=100,
+    ),
+    search: str | None = Query(
+        default=None,
+    ),
+    db: Session = Depends(
+        get_db
+    ),
+    current_user: User = Depends(
+        require_employee_branches_view
+    ),
+):
+
+    try:
+
+        return (
+            EmployeeBranchService
+            .get_my_branch_cashiers(
+                db=db,
+                current_user=current_user,
+                page=page,
+                page_size=page_size,
+                search=search,
+            )
+        )
+
+    except PermissionError as exc:
+
+        raise HTTPException(
+            status_code=
+                status.HTTP_403_FORBIDDEN,
+            detail=str(exc),
+        ) from exc
+
+    except LookupError as exc:
+
+        raise HTTPException(
+            status_code=
+                status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
 
 
 # =========================================================

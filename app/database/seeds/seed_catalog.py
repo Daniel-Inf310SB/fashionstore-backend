@@ -30,8 +30,8 @@ def seed_catalog(
 
     Orden:
     1. Datos maestros
-    2. 200 productos
-    3. Variantes talla/color
+    2. 120 productos
+    3. 3 variantes talla/color por producto (sin combinatoria cartesiana)
     4. Imágenes
     5. Relaciones de temporada/colección/promoción
     6. Assets del vestidor virtual

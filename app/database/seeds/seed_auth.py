@@ -52,6 +52,14 @@ PERMISSIONS = [
         "name": "Gestionar sucursales",
     },
     {
+        "code": "branch_staff.view",
+        "name": "Consultar personal de sucursal",
+    },
+    {
+        "code": "branch_staff.manage",
+        "name": "Gestionar personal de sucursal",
+    },
+    {
         "code": "products.manage",
         "name": "Gestionar productos",
     },
@@ -70,6 +78,14 @@ PERMISSIONS = [
     {
         "code": "inventory.view",
         "name": "Consultar inventario",
+    },
+    {
+        "code": "inventory.movements.view",
+        "name": "Consultar movimientos de inventario",
+    },
+    {
+        "code": "inventory.movements.manage",
+        "name": "Registrar movimientos manuales de inventario",
     },
     {
         "code": "reservations.manage",
@@ -100,8 +116,20 @@ PERMISSIONS = [
         "name": "Consultar ventas",
     },
     {
+        "code": "sales.manage",
+        "name": "Gestionar ventas presenciales",
+    },
+    {
         "code": "payments.process",
         "name": "Procesar pagos",
+    },
+    {
+        "code": "payments.view",
+        "name": "Consultar pagos electrónicos",
+    },
+    {
+        "code": "payments.manage",
+        "name": "Gestionar pagos electrónicos",
     },
     {
         "code": "receipts.create",
@@ -139,32 +167,45 @@ ROLE_PERMISSIONS = {
         "users.manage",
         "roles.manage",
         "branches.manage",
+        "branch_staff.view",
+        "branch_staff.manage",
         "products.manage",
         "products.view",
         "suppliers.manage",
         "inventory.manage",
         "inventory.view",
+        "inventory.movements.view",
+        "inventory.movements.manage",
         "reservations.manage",
         "reservations.view",
+        "cart.manage",
         "purchases.view",
         "sales.view",
+        "sales.manage",
+        "payments.view",
+        "payments.manage",
         "reports.view",
         "dashboard.view",
     ],
 
     "ENCARGADO_SUCURSAL": [
+        "branch_staff.view",
         "products.view",
         "inventory.manage",
         "inventory.view",
+        "inventory.movements.view",
+        "inventory.movements.manage",
         "reservations.manage",
         "reservations.view",
         "sales.view",
+        "sales.manage",
     ],
 
     "CAJERO": [
         "products.view",
         "inventory.view",
         "sales.create",
+        "sales.view",
         "payments.process",
         "receipts.create",
     ],
@@ -380,3 +421,40 @@ def seed_auth(db):
     print("")
     print("  ✓ Seed de autenticación completado")
     print("")
+# =========================================================
+# MAIN
+# =========================================================
+
+def main():
+
+    from app.database.session import SessionLocal
+
+    db = SessionLocal()
+
+    try:
+        seed_auth(db)
+
+    except Exception as exc:
+
+        db.rollback()
+
+        print("")
+        print("======================================")
+        print("       ERROR EN SEED AUTH")
+        print("======================================")
+        print("")
+        print(exc)
+        print("")
+
+        raise
+
+    finally:
+        db.close()
+
+
+# =========================================================
+# EJECUCIÓN DIRECTA
+# =========================================================
+
+if __name__ == "__main__":
+    main()

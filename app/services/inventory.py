@@ -19,6 +19,8 @@ from app.models.product import Product
 
 from app.models.product_variant import ProductVariant
 
+from app.models.user import User
+
 from app.schemas.inventory import (
     InventoryCreate,
     InventoryUpdate,
@@ -28,8 +30,119 @@ from app.services.audit_log_service import (
     AuditLogService,
 )
 
+from app.services.branch_service import (
+    BranchService,
+)
+
 
 class InventoryService:
+
+    ADMIN_ROLES = {
+        "ADMINISTRADOR",
+        "SUPERADMIN",
+    }
+
+    MANAGER_ROLE = (
+        "ENCARGADO_SUCURSAL"
+    )
+
+    # =====================================================
+    # ROL
+    # =====================================================
+
+    @staticmethod
+    def _role_name(
+        current_user: User,
+    ) -> str:
+
+        if current_user.role is None:
+            return ""
+
+        return (
+            current_user.role.name
+            .strip()
+            .upper()
+        )
+
+
+    # =====================================================
+    # RESOLVER SUCURSAL SEGÚN ROL
+    # =====================================================
+
+    @staticmethod
+    def _resolve_branch_scope(
+        db: Session,
+        current_user: User,
+        requested_branch_id: int | None = None,
+    ) -> int | None:
+
+        role = (
+            InventoryService
+            ._role_name(
+                current_user
+            )
+        )
+
+        if role in InventoryService.ADMIN_ROLES:
+            return requested_branch_id
+
+        if role == InventoryService.MANAGER_ROLE:
+
+            branch = (
+                BranchService
+                .get_my_branch(
+                    db=db,
+                    user_id=current_user.id,
+                )
+            )
+
+            if (
+                requested_branch_id is not None
+                and
+                requested_branch_id != branch.id
+            ):
+                raise PermissionError(
+                    "No puedes gestionar inventario "
+                    "de otra sucursal."
+                )
+
+            return branch.id
+
+        raise PermissionError(
+            "Tu rol no puede gestionar "
+            "la configuración del inventario."
+        )
+
+
+    # =====================================================
+    # VALIDAR ACCESO A UN INVENTARIO
+    # =====================================================
+
+    @staticmethod
+    def _ensure_inventory_access(
+        db: Session,
+        current_user: User,
+        inventory: Inventory,
+    ) -> None:
+
+        branch_id = (
+            InventoryService
+            ._resolve_branch_scope(
+                db=db,
+                current_user=current_user,
+                requested_branch_id=inventory.branch_id,
+            )
+        )
+
+        if (
+            branch_id is not None
+            and
+            inventory.branch_id != branch_id
+        ):
+            raise PermissionError(
+                "No puedes acceder a inventario "
+                "de otra sucursal."
+            )
 
     # =====================================================
     # QUERY BASE
@@ -267,6 +380,8 @@ class InventoryService:
     def get_inventories(
         db: Session,
 
+        current_user: User,
+
         page: int = 1,
 
         page_size: int = 10,
@@ -299,6 +414,16 @@ class InventoryService:
                 page_size,
                 100,
             ),
+        )
+
+
+        effective_branch_id = (
+            InventoryService
+            ._resolve_branch_scope(
+                db=db,
+                current_user=current_user,
+                requested_branch_id=branch_id,
+            )
         )
 
 
@@ -355,12 +480,12 @@ class InventoryService:
         # FILTROS
         # =================================================
 
-        if branch_id is not None:
+        if effective_branch_id is not None:
 
             query = query.filter(
                 Inventory.branch_id
                 ==
-                branch_id
+                effective_branch_id
             )
 
 
@@ -546,6 +671,8 @@ class InventoryService:
         db: Session,
 
         inventory_id: int,
+
+        current_user: User | None = None,
     ) -> Inventory:
 
         inventory = (
@@ -569,6 +696,14 @@ class InventoryService:
             )
 
 
+        if current_user is not None:
+            InventoryService._ensure_inventory_access(
+                db=db,
+                current_user=current_user,
+                inventory=inventory,
+            )
+
+
         return inventory
 
 
@@ -583,6 +718,9 @@ class InventoryService:
         payload:
             InventoryCreate,
 
+        current_user:
+            User,
+
         user_id:
             int | None,
 
@@ -593,13 +731,48 @@ class InventoryService:
             str | None = None,
     ) -> Inventory:
 
+        effective_branch_id = (
+            InventoryService
+            ._resolve_branch_scope(
+                db=db,
+                current_user=current_user,
+                requested_branch_id=payload.branch_id,
+            )
+        )
+
+
+        role = (
+            InventoryService
+            ._role_name(
+                current_user
+            )
+        )
+
+
+        if (
+            role == InventoryService.MANAGER_ROLE
+            and
+            (
+                payload.stock_quantity != 0
+                or
+                payload.reserved_quantity != 0
+            )
+        ):
+            raise ValueError(
+                "El encargado debe crear el registro "
+                "de inventario con stock y reserva en cero. "
+                "Las cantidades se modifican mediante "
+                "movimientos de inventario."
+            )
+
+
         branch = (
             InventoryService
             ._get_branch(
                 db=db,
 
                 branch_id=
-                    payload.branch_id,
+                    effective_branch_id,
             )
         )
 
@@ -628,7 +801,7 @@ class InventoryService:
                 db=db,
 
                 branch_id=
-                    payload.branch_id,
+                    effective_branch_id,
 
                 product_variant_id=
                     payload.product_variant_id,
@@ -656,7 +829,7 @@ class InventoryService:
 
         inventory = Inventory(
             branch_id=
-                payload.branch_id,
+                effective_branch_id,
 
             product_variant_id=
                 payload.product_variant_id,
@@ -770,6 +943,9 @@ class InventoryService:
 
                 inventory_id=
                     inventory.id,
+
+                current_user=
+                    current_user,
             )
         )
 
@@ -786,6 +962,9 @@ class InventoryService:
 
         payload:
             InventoryUpdate,
+
+        current_user:
+            User,
 
         user_id:
             int | None,
@@ -804,6 +983,9 @@ class InventoryService:
 
                 inventory_id=
                     inventory_id,
+
+                current_user=
+                    current_user,
             )
         )
 
@@ -926,10 +1108,34 @@ class InventoryService:
             ] is not None
         ):
 
-            inventory.is_active = (
+            requested_active = (
                 update_data[
                     "is_active"
                 ]
+            )
+
+
+            if (
+                InventoryService._role_name(current_user)
+                ==
+                InventoryService.MANAGER_ROLE
+                and
+                requested_active is False
+                and
+                (
+                    inventory.stock_quantity > 0
+                    or
+                    inventory.reserved_quantity > 0
+                )
+            ):
+                raise ValueError(
+                    "No puedes desactivar un inventario "
+                    "que todavía tiene stock o unidades reservadas."
+                )
+
+
+            inventory.is_active = (
+                requested_active
             )
 
 
@@ -1001,6 +1207,9 @@ class InventoryService:
 
                 inventory_id=
                     inventory.id,
+
+                current_user=
+                    current_user,
             )
         )
 
@@ -1014,6 +1223,9 @@ class InventoryService:
         db: Session,
 
         inventory_id: int,
+
+        current_user:
+            User,
 
         user_id:
             int | None,
@@ -1032,6 +1244,9 @@ class InventoryService:
 
                 inventory_id=
                     inventory_id,
+
+                current_user=
+                    current_user,
             )
         )
 
@@ -1039,6 +1254,23 @@ class InventoryService:
         if not inventory.is_active:
 
             return inventory
+
+
+        if (
+            InventoryService._role_name(current_user)
+            ==
+            InventoryService.MANAGER_ROLE
+            and
+            (
+                inventory.stock_quantity > 0
+                or
+                inventory.reserved_quantity > 0
+            )
+        ):
+            raise ValueError(
+                "No puedes desactivar un inventario "
+                "que todavía tiene stock o unidades reservadas."
+            )
 
 
         old_values = {
@@ -1104,5 +1336,8 @@ class InventoryService:
 
                 inventory_id=
                     inventory.id,
+
+                current_user=
+                    current_user,
             )
         )

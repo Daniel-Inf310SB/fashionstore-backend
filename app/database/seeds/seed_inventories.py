@@ -13,7 +13,7 @@ from app.models.product_variant import ProductVariant
 # =========================================================
 #
 # El catálogo actual genera aproximadamente:
-#   200 productos x 16 variantes = ~3200 ProductVariant
+#   120 productos x 3 variantes = 360 ProductVariant
 #
 # Existen 27 sucursales.
 #
@@ -22,8 +22,8 @@ from app.models.product_variant import ProductVariant
 # innecesariamente la BD, cada variante se distribuye de forma
 # determinística en 4 sucursales.
 #
-# Con ~3200 variantes:
-#   ~12.800 filas Inventory
+# Con 360 variantes:
+#   ~1.440 filas Inventory
 #
 # Esto permite:
 #   - stock distinto por sucursal

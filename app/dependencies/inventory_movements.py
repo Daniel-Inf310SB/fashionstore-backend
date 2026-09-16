@@ -14,7 +14,7 @@ from app.models.user import User
 def require_inventory_movements_view(
     current_user: User = Depends(
         require_permission(
-            "inventory.view"
+            "inventory.movements.view"
         )
     ),
 ) -> User:
@@ -29,7 +29,7 @@ def require_inventory_movements_view(
 def require_inventory_movements_manage(
     current_user: User = Depends(
         require_permission(
-            "inventory.manage"
+            "inventory.movements.manage"
         )
     ),
 ) -> User:

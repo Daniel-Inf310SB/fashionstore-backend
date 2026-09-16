@@ -122,10 +122,15 @@ def get_inventory_movements(
     ),
 ):
 
-    return (
-        InventoryMovementService
-        .get_movements(
-            db=db,
+    try:
+
+        return (
+            InventoryMovementService
+            .get_movements(
+                db=db,
+
+                current_user=
+                    current_user,
 
             page=page,
 
@@ -154,10 +159,31 @@ def get_inventory_movements(
             movement_type=
                 movement_type,
 
-            sort_order=
-                sort_order,
+                sort_order=
+                    sort_order,
+            )
         )
-    )
+
+    except PermissionError as exc:
+
+        raise HTTPException(
+            status_code=http_status.HTTP_403_FORBIDDEN,
+            detail=str(exc),
+        ) from exc
+
+    except LookupError as exc:
+
+        raise HTTPException(
+            status_code=http_status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+
+    except ValueError as exc:
+
+        raise HTTPException(
+            status_code=http_status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        ) from exc
 
 
 # =========================================================
@@ -199,6 +225,9 @@ def create_inventory_movement(
                 payload=
                     payload,
 
+                current_user=
+                    current_user,
+
                 user_id=
                     current_user.id,
 
@@ -214,6 +243,13 @@ def create_inventory_movement(
                     ),
             )
         )
+
+    except PermissionError as exc:
+
+        raise HTTPException(
+            status_code=http_status.HTTP_403_FORBIDDEN,
+            detail=str(exc),
+        ) from exc
 
     except LookupError as exc:
 
@@ -270,8 +306,18 @@ def get_inventory_movement(
 
                 movement_id=
                     movement_id,
+
+                current_user=
+                    current_user,
             )
         )
+
+    except PermissionError as exc:
+
+        raise HTTPException(
+            status_code=http_status.HTTP_403_FORBIDDEN,
+            detail=str(exc),
+        ) from exc
 
     except LookupError as exc:
 

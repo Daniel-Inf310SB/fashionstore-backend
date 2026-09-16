@@ -40,6 +40,8 @@ from app.models.supplier_product import (
     SupplierProduct,
 )
 
+from app.models.user import User
+
 from app.schemas.inventory_movement import (
     InventoryMovementCreate,
 )
@@ -48,8 +50,90 @@ from app.services.audit_log_service import (
     AuditLogService,
 )
 
+from app.services.branch_service import (
+    BranchService,
+)
+
 
 class InventoryMovementService:
+
+    ADMIN_ROLES = {
+        "ADMINISTRADOR",
+        "SUPERADMIN",
+    }
+
+    MANAGER_ROLE = (
+        "ENCARGADO_SUCURSAL"
+    )
+
+    MANAGER_MANUAL_MOVEMENTS = {
+        "ADJUSTMENT_IN",
+        "ADJUSTMENT_OUT",
+    }
+
+    # =====================================================
+    # ROL
+    # =====================================================
+
+    @staticmethod
+    def _role_name(
+        current_user: User,
+    ) -> str:
+
+        if current_user.role is None:
+            return ""
+
+        return (
+            current_user.role.name
+            .strip()
+            .upper()
+        )
+
+
+    # =====================================================
+    # RESOLVER SUCURSAL SEGÚN ROL
+    # =====================================================
+
+    @staticmethod
+    def _resolve_branch_scope(
+        db: Session,
+        current_user: User,
+        requested_branch_id: int | None = None,
+    ) -> int | None:
+
+        role = (
+            InventoryMovementService
+            ._role_name(
+                current_user
+            )
+        )
+
+        if role in InventoryMovementService.ADMIN_ROLES:
+            return requested_branch_id
+
+        if role == InventoryMovementService.MANAGER_ROLE:
+
+            branch = BranchService.get_my_branch(
+                db=db,
+                user_id=current_user.id,
+            )
+
+            if (
+                requested_branch_id is not None
+                and
+                requested_branch_id != branch.id
+            ):
+                raise PermissionError(
+                    "No puedes consultar ni registrar "
+                    "movimientos de otra sucursal."
+                )
+
+            return branch.id
+
+        raise PermissionError(
+            "Tu rol no puede consultar ni registrar "
+            "movimientos de inventario."
+        )
 
     # =====================================================
     # QUERY BASE
@@ -145,6 +229,8 @@ class InventoryMovementService:
     def get_movements(
         db: Session,
 
+        current_user: User,
+
         page: int = 1,
 
         page_size: int = 10,
@@ -179,6 +265,16 @@ class InventoryMovementService:
                 page_size,
                 100,
             ),
+        )
+
+
+        effective_branch_id = (
+            InventoryMovementService
+            ._resolve_branch_scope(
+                db=db,
+                current_user=current_user,
+                requested_branch_id=branch_id,
+            )
         )
 
 
@@ -256,12 +352,12 @@ class InventoryMovementService:
             )
 
 
-        if branch_id is not None:
+        if effective_branch_id is not None:
 
             query = query.filter(
                 Inventory.branch_id
                 ==
-                branch_id
+                effective_branch_id
             )
 
 
@@ -391,6 +487,8 @@ class InventoryMovementService:
         db: Session,
 
         movement_id: int,
+
+        current_user: User | None = None,
     ) -> InventoryMovement:
 
         movement = (
@@ -411,6 +509,17 @@ class InventoryMovementService:
 
             raise LookupError(
                 "Movimiento de inventario no encontrado."
+            )
+
+
+        if current_user is not None:
+
+            InventoryMovementService._resolve_branch_scope(
+                db=db,
+                current_user=current_user,
+                requested_branch_id=(
+                    movement.inventory.branch_id
+                ),
             )
 
 
@@ -863,6 +972,9 @@ class InventoryMovementService:
         payload:
             InventoryMovementCreate,
 
+        current_user:
+            User,
+
         user_id:
             int | None,
 
@@ -884,6 +996,51 @@ class InventoryMovementService:
                         payload.inventory_id,
                 )
             )
+
+
+            InventoryMovementService._resolve_branch_scope(
+                db=db,
+                current_user=current_user,
+                requested_branch_id=inventory.branch_id,
+            )
+
+
+            role = (
+                InventoryMovementService
+                ._role_name(
+                    current_user
+                )
+            )
+
+
+            if (
+                role == InventoryMovementService.MANAGER_ROLE
+                and
+                payload.movement_type
+                not in
+                InventoryMovementService.MANAGER_MANUAL_MOVEMENTS
+            ):
+                raise PermissionError(
+                    "El encargado solo puede registrar "
+                    "ajustes manuales de entrada o salida. "
+                    "Ventas, reservas, devoluciones y "
+                    "transferencias se registran desde sus "
+                    "procesos correspondientes."
+                )
+
+
+            if (
+                role == InventoryMovementService.MANAGER_ROLE
+                and
+                payload.movement_type in
+                InventoryMovementService.MANAGER_MANUAL_MOVEMENTS
+                and
+                not (payload.reason or "").strip()
+            ):
+                raise ValueError(
+                    "Debes indicar el motivo del ajuste "
+                    "de inventario."
+                )
 
 
             supplier_id = (
@@ -1200,6 +1357,9 @@ class InventoryMovementService:
 
                     movement_id=
                         movement.id,
+
+                    current_user=
+                        current_user,
                 )
             )
 

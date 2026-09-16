@@ -6,10 +6,16 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKey,
+    Index,
     String,
     func,
+    text,
 )
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import (
+    Mapped,
+    mapped_column,
+    relationship,
+)
 
 from app.database.base import Base
 
@@ -22,6 +28,15 @@ class ShoppingCart(Base):
             "status IN ('ACTIVE', 'CONVERTED', 'ABANDONED')",
             name="ck_shopping_cart_status",
         ),
+        # Un cliente puede conservar muchos carritos históricos,
+        # pero solo uno ACTIVE por sucursal.
+        Index(
+            "uq_shopping_cart_active_customer_branch",
+            "customer_id",
+            "branch_id",
+            unique=True,
+            postgresql_where=text("status = 'ACTIVE'"),
+        ),
     )
 
     id: Mapped[int] = mapped_column(
@@ -30,8 +45,28 @@ class ShoppingCart(Base):
     )
 
     customer_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"),
+        ForeignKey(
+            "users.id",
+            ondelete="CASCADE",
+        ),
         nullable=False,
+        index=True,
+    )
+
+    # =====================================================
+    # CU32 - SUCURSAL DEL CARRITO
+    #
+    # Es nullable para no romper carritos antiguos.
+    # Los nuevos carritos deberían guardar la sucursal
+    # seleccionada por el cliente.
+    # =====================================================
+
+    branch_id: Mapped[int | None] = mapped_column(
+        ForeignKey(
+            "branches.id",
+            ondelete="SET NULL",
+        ),
+        nullable=True,
         index=True,
     )
 
@@ -60,6 +95,11 @@ class ShoppingCart(Base):
         "User",
         back_populates="shopping_carts",
         foreign_keys=[customer_id],
+    )
+
+    branch = relationship(
+        "Branch",
+        foreign_keys=[branch_id],
     )
 
     items: Mapped[list["CartItem"]] = relationship(

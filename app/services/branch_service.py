@@ -12,6 +12,7 @@ from sqlalchemy.orm import (
 
 from app.models.branch import Branch
 from app.models.city import City
+from app.models.employee_branch import EmployeeBranch
 from app.services.audit_log_service import AuditLogService
 from app.schemas.branch import (
     BranchCreate,
@@ -20,6 +21,68 @@ from app.schemas.branch import (
 
 
 class BranchService:
+
+    # =====================================================
+    # MI SUCURSAL ACTIVA
+    #
+    # Obtiene la sucursal asociada al empleado autenticado.
+    # No depende del módulo de ventas ni del rol CAJERO.
+    # =====================================================
+
+    @staticmethod
+    def get_my_branch(
+        db: Session,
+        user_id: int,
+    ) -> Branch:
+
+        assignment = (
+            db.query(
+                EmployeeBranch
+            )
+            .options(
+                joinedload(
+                    EmployeeBranch.branch
+                )
+                .joinedload(
+                    Branch.city
+                )
+            )
+            .filter(
+                EmployeeBranch.user_id
+                == user_id,
+
+                EmployeeBranch.is_active.is_(
+                    True
+                ),
+            )
+            .first()
+        )
+
+
+        if assignment is None:
+            raise LookupError(
+                "El usuario no tiene una sucursal activa asignada."
+            )
+
+
+        branch = (
+            assignment.branch
+        )
+
+
+        if branch is None:
+            raise LookupError(
+                "La sucursal asignada no existe."
+            )
+
+
+        if not branch.is_active:
+            raise ValueError(
+                "La sucursal asignada está inactiva."
+            )
+
+
+        return branch
 
     # =====================================================
     # LISTAR

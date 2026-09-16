@@ -17,6 +17,10 @@ from app.dependencies.branches import (
     require_branches_manage,
 )
 
+from app.dependencies.permissions import (
+    require_authenticated_user,
+)
+
 from app.models.user import User
 
 from app.schemas.branch import (
@@ -139,6 +143,48 @@ def create_branch(
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+
+# =========================================================
+# MI SUCURSAL ACTIVA
+#
+# IMPORTANTE:
+# Esta ruta debe declararse antes de /{branch_id}.
+#
+# Sirve para ENCARGADO_SUCURSAL, CAJERO u otro empleado
+# autenticado que tenga una asignación activa.
+# =========================================================
+
+@router.get(
+    "/my-branch",
+    response_model=BranchResponse,
+)
+def get_my_branch(
+    db: Session = Depends(
+        get_db
+    ),
+    current_user: User = Depends(
+        require_authenticated_user
+    ),
+):
+
+    try:
+        return BranchService.get_my_branch(
+            db=db,
+            user_id=current_user.id,
+        )
+
+    except LookupError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
             detail=str(exc),
         ) from exc
 

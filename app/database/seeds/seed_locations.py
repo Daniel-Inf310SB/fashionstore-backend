@@ -269,140 +269,44 @@ BRANCHES = [
 # =========================================================
 
 EMPLOYEE_ASSIGNMENTS = [
+    # Cada encargado y sus dos cajeros comparten la misma sucursal.
+    # Esto garantiza que las ventas del cajero pertenezcan a la sucursal
+    # que supervisa el encargado.
+    {"email": "encargado.sc@fashionstore.com", "branch": "FashionStore Equipetrol"},
+    {"email": "cajero.sc1@fashionstore.com", "branch": "FashionStore Equipetrol"},
+    {"email": "cajero.sc2@fashionstore.com", "branch": "FashionStore Equipetrol"},
 
-    # Santa Cruz
-    {
-        "email": "encargado.sc@fashionstore.com",
-        "branch": "FashionStore Equipetrol",
-    },
-    {
-        "email": "cajero.sc1@fashionstore.com",
-        "branch": "FashionStore Centro SC",
-    },
-    {
-        "email": "cajero.sc2@fashionstore.com",
-        "branch": "FashionStore Ventura",
-    },
+    {"email": "encargado.lp@fashionstore.com", "branch": "FashionStore Sopocachi"},
+    {"email": "cajero.lp1@fashionstore.com", "branch": "FashionStore Sopocachi"},
+    {"email": "cajero.lp2@fashionstore.com", "branch": "FashionStore Sopocachi"},
 
+    {"email": "encargado.cbba@fashionstore.com", "branch": "FashionStore Cala Cala"},
+    {"email": "cajero.cbba1@fashionstore.com", "branch": "FashionStore Cala Cala"},
+    {"email": "cajero.cbba2@fashionstore.com", "branch": "FashionStore Cala Cala"},
 
-    # La Paz
-    {
-        "email": "encargado.lp@fashionstore.com",
-        "branch": "FashionStore Sopocachi",
-    },
-    {
-        "email": "cajero.lp1@fashionstore.com",
-        "branch": "FashionStore Calacoto",
-    },
-    {
-        "email": "cajero.lp2@fashionstore.com",
-        "branch": "FashionStore Centro LP",
-    },
+    {"email": "encargado.ch@fashionstore.com", "branch": "FashionStore Sucre Centro"},
+    {"email": "cajero.ch1@fashionstore.com", "branch": "FashionStore Sucre Centro"},
+    {"email": "cajero.ch2@fashionstore.com", "branch": "FashionStore Sucre Centro"},
 
+    {"email": "encargado.or@fashionstore.com", "branch": "FashionStore Oruro Centro"},
+    {"email": "cajero.or1@fashionstore.com", "branch": "FashionStore Oruro Centro"},
+    {"email": "cajero.or2@fashionstore.com", "branch": "FashionStore Oruro Centro"},
 
-    # Cochabamba
-    {
-        "email": "encargado.cbba@fashionstore.com",
-        "branch": "FashionStore Cala Cala",
-    },
-    {
-        "email": "cajero.cbba1@fashionstore.com",
-        "branch": "FashionStore Queru Queru",
-    },
-    {
-        "email": "cajero.cbba2@fashionstore.com",
-        "branch": "FashionStore Centro CBBA",
-    },
+    {"email": "encargado.pt@fashionstore.com", "branch": "FashionStore Potosí Centro"},
+    {"email": "cajero.pt1@fashionstore.com", "branch": "FashionStore Potosí Centro"},
+    {"email": "cajero.pt2@fashionstore.com", "branch": "FashionStore Potosí Centro"},
 
+    {"email": "encargado.tj@fashionstore.com", "branch": "FashionStore Tarija Centro"},
+    {"email": "cajero.tj1@fashionstore.com", "branch": "FashionStore Tarija Centro"},
+    {"email": "cajero.tj2@fashionstore.com", "branch": "FashionStore Tarija Centro"},
 
-    # Chuquisaca
-    {
-        "email": "encargado.ch@fashionstore.com",
-        "branch": "FashionStore Sucre Centro",
-    },
-    {
-        "email": "cajero.ch1@fashionstore.com",
-        "branch": "FashionStore Sucre Norte",
-    },
-    {
-        "email": "cajero.ch2@fashionstore.com",
-        "branch": "FashionStore Sucre Sur",
-    },
+    {"email": "encargado.be@fashionstore.com", "branch": "FashionStore Trinidad Centro"},
+    {"email": "cajero.be1@fashionstore.com", "branch": "FashionStore Trinidad Centro"},
+    {"email": "cajero.be2@fashionstore.com", "branch": "FashionStore Trinidad Centro"},
 
-
-    # Oruro
-    {
-        "email": "encargado.or@fashionstore.com",
-        "branch": "FashionStore Oruro Centro",
-    },
-    {
-        "email": "cajero.or1@fashionstore.com",
-        "branch": "FashionStore Oruro Norte",
-    },
-    {
-        "email": "cajero.or2@fashionstore.com",
-        "branch": "FashionStore Oruro Sur",
-    },
-
-
-    # Potosí
-    {
-        "email": "encargado.pt@fashionstore.com",
-        "branch": "FashionStore Potosí Centro",
-    },
-    {
-        "email": "cajero.pt1@fashionstore.com",
-        "branch": "FashionStore Potosí Norte",
-    },
-    {
-        "email": "cajero.pt2@fashionstore.com",
-        "branch": "FashionStore Potosí Sur",
-    },
-
-
-    # Tarija
-    {
-        "email": "encargado.tj@fashionstore.com",
-        "branch": "FashionStore Tarija Centro",
-    },
-    {
-        "email": "cajero.tj1@fashionstore.com",
-        "branch": "FashionStore Tarija Norte",
-    },
-    {
-        "email": "cajero.tj2@fashionstore.com",
-        "branch": "FashionStore Tarija Sur",
-    },
-
-
-    # Beni
-    {
-        "email": "encargado.be@fashionstore.com",
-        "branch": "FashionStore Trinidad Centro",
-    },
-    {
-        "email": "cajero.be1@fashionstore.com",
-        "branch": "FashionStore Trinidad Norte",
-    },
-    {
-        "email": "cajero.be2@fashionstore.com",
-        "branch": "FashionStore Trinidad Sur",
-    },
-
-
-    # Pando
-    {
-        "email": "encargado.pd@fashionstore.com",
-        "branch": "FashionStore Cobija Centro",
-    },
-    {
-        "email": "cajero.pd1@fashionstore.com",
-        "branch": "FashionStore Cobija Norte",
-    },
-    {
-        "email": "cajero.pd2@fashionstore.com",
-        "branch": "FashionStore Cobija Sur",
-    },
+    {"email": "encargado.pd@fashionstore.com", "branch": "FashionStore Cobija Centro"},
+    {"email": "cajero.pd1@fashionstore.com", "branch": "FashionStore Cobija Centro"},
+    {"email": "cajero.pd2@fashionstore.com", "branch": "FashionStore Cobija Centro"},
 ]
 
 

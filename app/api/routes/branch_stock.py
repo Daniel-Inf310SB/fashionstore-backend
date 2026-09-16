@@ -3,7 +3,9 @@ from typing import Literal
 from fastapi import (
     APIRouter,
     Depends,
+    HTTPException,
     Query,
+    status as http_status,
 )
 
 from sqlalchemy.orm import Session
@@ -120,10 +122,15 @@ def get_branch_stock(
     ),
 ):
 
-    return (
-        BranchStockService
-        .get_branch_stock(
-            db=db,
+    try:
+
+        return (
+            BranchStockService
+            .get_branch_stock(
+                db=db,
+
+                current_user=
+                    current_user,
 
             page=page,
 
@@ -152,7 +159,28 @@ def get_branch_stock(
             sort_by=
                 sort_by,
 
-            sort_order=
-                sort_order,
+                sort_order=
+                    sort_order,
+            )
         )
-    )
+
+    except PermissionError as exc:
+
+        raise HTTPException(
+            status_code=http_status.HTTP_403_FORBIDDEN,
+            detail=str(exc),
+        ) from exc
+
+    except LookupError as exc:
+
+        raise HTTPException(
+            status_code=http_status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+
+    except ValueError as exc:
+
+        raise HTTPException(
+            status_code=http_status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        ) from exc

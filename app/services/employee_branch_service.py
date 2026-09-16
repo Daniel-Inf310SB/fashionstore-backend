@@ -307,6 +307,204 @@ class EmployeeBranchService:
         )
 
     # =====================================================
+    # CAJEROS DE MI SUCURSAL
+    #
+    # Uso exclusivo del ENCARGADO_SUCURSAL.
+    # La sucursal se obtiene desde su asignación activa.
+    # No se recibe branch_id desde el frontend.
+    # =====================================================
+
+    @staticmethod
+    def get_my_branch_cashiers(
+        db: Session,
+        current_user: User,
+        page: int = 1,
+        page_size: int = 10,
+        search: str | None = None,
+    ) -> dict:
+
+        # =================================================
+        # VALIDAR ROL
+        # =================================================
+
+        if (
+            current_user.role is None
+            or current_user.role.name
+            != "ENCARGADO_SUCURSAL"
+        ):
+            raise PermissionError(
+                "Solo un encargado de sucursal puede "
+                "consultar el personal de su sucursal."
+            )
+
+        # =================================================
+        # OBTENER SUCURSAL ACTIVA DEL ENCARGADO
+        # =================================================
+
+        manager_assignment = (
+            db.query(
+                EmployeeBranch
+            )
+            .filter(
+                EmployeeBranch.user_id
+                == current_user.id,
+                EmployeeBranch.is_active
+                .is_(True),
+            )
+            .first()
+        )
+
+        if manager_assignment is None:
+            raise LookupError(
+                "El encargado no tiene una sucursal "
+                "activa asignada."
+            )
+
+        branch = db.get(
+            Branch,
+            manager_assignment.branch_id,
+        )
+
+        if branch is None:
+            raise LookupError(
+                "La sucursal asignada no existe."
+            )
+
+        if not branch.is_active:
+            raise LookupError(
+                "La sucursal asignada está inactiva."
+            )
+
+        # =================================================
+        # PAGINACIÓN
+        # =================================================
+
+        page = max(
+            page,
+            1,
+        )
+
+        page_size = max(
+            1,
+            min(
+                page_size,
+                100,
+            ),
+        )
+
+        # =================================================
+        # SOLO CAJEROS ACTIVOS DE ESA SUCURSAL
+        # =================================================
+
+        query = (
+            EmployeeBranchService
+            ._base_query(db)
+            .join(
+                User,
+                EmployeeBranch.user_id
+                == User.id,
+            )
+            .join(
+                Role,
+                User.role_id
+                == Role.id,
+            )
+            .filter(
+                EmployeeBranch.branch_id
+                == branch.id,
+                EmployeeBranch.is_active
+                .is_(True),
+                User.is_active
+                .is_(True),
+                Role.is_active
+                .is_(True),
+                Role.name
+                == "CAJERO",
+            )
+        )
+
+        # =================================================
+        # BUSCADOR
+        # =================================================
+
+        if search:
+
+            clean_search = (
+                search.strip()
+            )
+
+            if clean_search:
+
+                pattern = (
+                    f"%{clean_search}%"
+                )
+
+                query = query.filter(
+                    or_(
+                        User.first_name.ilike(
+                            pattern
+                        ),
+                        User.last_name.ilike(
+                            pattern
+                        ),
+                        User.email.ilike(
+                            pattern
+                        ),
+                        User.username.ilike(
+                            pattern
+                        ),
+                        User.document_number.ilike(
+                            pattern
+                        ),
+                        User.phone.ilike(
+                            pattern
+                        ),
+                    )
+                )
+
+        # =================================================
+        # TOTAL
+        # =================================================
+
+        total = query.count()
+
+        # =================================================
+        # RESULTADOS
+        # =================================================
+
+        items = (
+            query
+            .order_by(
+                User.first_name.asc(),
+                User.last_name.asc(),
+                EmployeeBranch.id.asc(),
+            )
+            .offset(
+                (page - 1)
+                * page_size
+            )
+            .limit(
+                page_size
+            )
+            .all()
+        )
+
+        return {
+            "items": items,
+            "page": page,
+            "page_size": page_size,
+            "total": total,
+            "total_pages": (
+                math.ceil(
+                    total / page_size
+                )
+                if total > 0
+                else 0
+            ),
+        }
+
+
+    # =====================================================
     # HISTORIAL DE UN EMPLEADO
     # =====================================================
 

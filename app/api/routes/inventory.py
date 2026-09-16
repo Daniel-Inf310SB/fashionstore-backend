@@ -123,10 +123,15 @@ def get_inventories(
     ),
 ):
 
-    return (
-        InventoryService
-        .get_inventories(
-            db=db,
+    try:
+
+        return (
+            InventoryService
+            .get_inventories(
+                db=db,
+
+                current_user=
+                    current_user,
 
             page=page,
 
@@ -152,10 +157,31 @@ def get_inventories(
             sort_by=
                 sort_by,
 
-            sort_order=
-                sort_order,
+                sort_order=
+                    sort_order,
+            )
         )
-    )
+
+    except PermissionError as exc:
+
+        raise HTTPException(
+            status_code=http_status.HTTP_403_FORBIDDEN,
+            detail=str(exc),
+        ) from exc
+
+    except LookupError as exc:
+
+        raise HTTPException(
+            status_code=http_status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+
+    except ValueError as exc:
+
+        raise HTTPException(
+            status_code=http_status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        ) from exc
 
 
 # =========================================================
@@ -197,6 +223,9 @@ def create_inventory(
                 payload=
                     payload,
 
+                current_user=
+                    current_user,
+
                 user_id=
                     current_user.id,
 
@@ -212,6 +241,13 @@ def create_inventory(
                     ),
             )
         )
+
+    except PermissionError as exc:
+
+        raise HTTPException(
+            status_code=http_status.HTTP_403_FORBIDDEN,
+            detail=str(exc),
+        ) from exc
 
     except LookupError as exc:
 
@@ -267,8 +303,18 @@ def get_inventory(
 
                 inventory_id=
                     inventory_id,
+
+                current_user=
+                    current_user,
             )
         )
+
+    except PermissionError as exc:
+
+        raise HTTPException(
+            status_code=http_status.HTTP_403_FORBIDDEN,
+            detail=str(exc),
+        ) from exc
 
     except LookupError as exc:
 
@@ -323,6 +369,9 @@ def update_inventory(
                 payload=
                     payload,
 
+                current_user=
+                    current_user,
+
                 user_id=
                     current_user.id,
 
@@ -338,6 +387,13 @@ def update_inventory(
                     ),
             )
         )
+
+    except PermissionError as exc:
+
+        raise HTTPException(
+            status_code=http_status.HTTP_403_FORBIDDEN,
+            detail=str(exc),
+        ) from exc
 
     except LookupError as exc:
 
@@ -397,6 +453,9 @@ def deactivate_inventory(
                 inventory_id=
                     inventory_id,
 
+                current_user=
+                    current_user,
+
                 user_id=
                     current_user.id,
 
@@ -413,6 +472,13 @@ def deactivate_inventory(
             )
         )
 
+    except PermissionError as exc:
+
+        raise HTTPException(
+            status_code=http_status.HTTP_403_FORBIDDEN,
+            detail=str(exc),
+        ) from exc
+
     except LookupError as exc:
 
         raise HTTPException(
@@ -422,4 +488,11 @@ def deactivate_inventory(
 
             detail=
                 str(exc),
+        ) from exc
+
+    except ValueError as exc:
+
+        raise HTTPException(
+            status_code=http_status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
         ) from exc
