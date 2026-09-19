@@ -150,6 +150,12 @@ class User(Base):
         cascade="all, delete-orphan",
     )
 
+    notifications = relationship(
+        "Notification",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+
     sessions = relationship(
         "UserSession",
         back_populates="user",

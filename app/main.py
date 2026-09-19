@@ -6,6 +6,10 @@ from fastapi.middleware.cors import (
     CORSMiddleware,
 )
 
+from apscheduler.schedulers.background import (
+    BackgroundScheduler,
+)
+
 import app.models
 
 from app.core.config import (
@@ -14,6 +18,19 @@ from app.core.config import (
 
 from app.core.cloudinary_config import (
     configure_cloudinary,
+)
+
+from app.jobs.expiration_jobs import (
+    run_expiration_jobs,
+)
+
+from app.jobs.notification_jobs import (
+    run_marketing_notification_jobs,
+    run_push_delivery_jobs,
+)
+
+from app.services.firebase_service import (
+    FirebaseService,
 )
 
 
@@ -39,6 +56,14 @@ from app.api.routes.users import (
 
 from app.api.routes.audit_logs import (
     router as audit_logs_router,
+)
+
+from app.api.routes.notifications import (
+    router as notifications_router,
+)
+
+from app.api.routes.devices import (
+    router as devices_router,
 )
 
 
@@ -162,6 +187,10 @@ from app.api.routes.customer_catalog import (
     router as customer_catalog_router,
 )
 
+from app.api.routes.customer_merchandising import (
+    router as customer_merchandising_router,
+)
+
 from app.api.routes.customer_product_detail import (
     router as customer_product_detail_router,
 )
@@ -219,6 +248,37 @@ from app.api.routes.payments import (
 
 
 # =========================================================
+# MÓDULO 12 - REPORTES
+# =========================================================
+
+from app.api.routes.reports import (
+    router as reports_router,
+)
+
+
+# =========================================================
+# DASHBOARD ADMINISTRATIVO
+# =========================================================
+
+from app.api.routes.dashboard import (
+    router as dashboard_router,
+)
+
+
+# =========================================================
+# MÓDULO 13 - INTELIGENCIA ARTIFICIAL
+# =========================================================
+
+from app.api.routes.ai import (
+    router as ai_router,
+)
+
+from app.api.routes.customer_assistant import (
+    router as customer_assistant_router,
+)
+
+
+# =========================================================
 # CLOUDINARY
 # =========================================================
 
@@ -236,6 +296,92 @@ app = FastAPI(
     version=
         settings.app_version,
 )
+
+
+# =========================================================
+# FIREBASE / FCM
+# =========================================================
+
+@app.on_event("startup")
+def initialize_firebase():
+    """
+    Inicializa Firebase Admin SDK al arrancar la API.
+
+    Si Firebase está deshabilitado o la credencial no existe,
+    FirebaseService.initialize() devuelve False sin impedir
+    que FashionStore inicie.
+    """
+
+    FirebaseService.initialize()
+
+
+# =========================================================
+# SCHEDULER - EXPIRACIÓN AUTOMÁTICA
+# =========================================================
+
+expiration_scheduler = BackgroundScheduler(
+    timezone="UTC",
+)
+
+
+@app.on_event("startup")
+def start_background_scheduler():
+
+    if settings.expiration_scheduler_enabled:
+        expiration_scheduler.add_job(
+            run_expiration_jobs,
+            trigger="interval",
+            minutes=settings.expiration_check_minutes,
+            id="fashionstore-expiration",
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+        )
+
+    if settings.push_jobs_enabled:
+        expiration_scheduler.add_job(
+            run_push_delivery_jobs,
+            trigger="interval",
+            seconds=settings.push_job_interval_seconds,
+            id="fashionstore-push-delivery",
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+        )
+
+    if settings.marketing_notification_jobs_enabled:
+        expiration_scheduler.add_job(
+            run_marketing_notification_jobs,
+            trigger="interval",
+            seconds=settings.marketing_campaign_job_interval_seconds,
+            id="fashionstore-marketing-notifications",
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+        )
+
+    has_enabled_jobs = any(
+        (
+            settings.expiration_scheduler_enabled,
+            settings.push_jobs_enabled,
+            settings.marketing_notification_jobs_enabled,
+        )
+    )
+
+    if (
+        has_enabled_jobs
+        and not expiration_scheduler.running
+    ):
+        expiration_scheduler.start()
+
+
+@app.on_event("shutdown")
+def stop_expiration_scheduler():
+
+    if expiration_scheduler.running:
+        expiration_scheduler.shutdown(
+            wait=False,
+        )
 
 
 # =========================================================
@@ -284,6 +430,14 @@ app.include_router(
 
 app.include_router(
     audit_logs_router
+)
+
+app.include_router(
+    notifications_router
+)
+
+app.include_router(
+    devices_router
 )
 
 
@@ -411,13 +565,15 @@ app.include_router(
     store_branches_router
 )
 
-
 # CU24 - Consultar catálogo
 # CU25 - Buscar y filtrar prendas
 app.include_router(
     customer_catalog_router
 )
 
+app.include_router(
+    customer_merchandising_router
+)
 
 # CU26 - Consultar detalle de prenda
 # CU27 - Consultar disponibilidad por sucursal
@@ -487,6 +643,41 @@ app.include_router(
 # CU39 - Consultar estado de pago
 app.include_router(
     payments_router
+)
+
+
+# =========================================================
+# MÓDULO 12 - REPORTES
+# =========================================================
+
+app.include_router(
+    reports_router
+)
+
+
+# =========================================================
+# DASHBOARD ADMINISTRATIVO
+# =========================================================
+
+app.include_router(
+    dashboard_router
+)
+
+
+# =========================================================
+# MÓDULO 13 - INTELIGENCIA ARTIFICIAL
+# =========================================================
+
+# CU43 - Obtener recomendaciones personalizadas de prendas
+# CU44 - Consultar asistente inteligente de moda
+# CU45 - Generar reporte inteligente bajo demanda
+app.include_router(
+    ai_router
+)
+
+# Asistente transaccional/navegacional del cliente
+app.include_router(
+    customer_assistant_router
 )
 
 

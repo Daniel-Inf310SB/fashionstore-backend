@@ -1,4 +1,7 @@
+import base64
 import html
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 import httpx
 
@@ -23,6 +26,7 @@ class EmailService:
         to_name: str | None,
         subject: str,
         html_content: str,
+        attachments: list[tuple[str, bytes]] | None = None,
     ) -> None:
 
         payload = {
@@ -49,6 +53,15 @@ class EmailService:
 
             "htmlContent": html_content,
         }
+
+        if attachments:
+            payload["attachment"] = [
+                {
+                    "name": filename,
+                    "content": base64.b64encode(content).decode("ascii"),
+                }
+                for filename, content in attachments
+            ]
 
 
         headers = {
@@ -296,6 +309,88 @@ class EmailService:
 
             html_content=html_content,
         )
+
+    # =========================
+    # RESERVA CONFIRMADA
+    # =========================
+
+    @staticmethod
+    def send_reservation_confirmed(
+        *,
+        email: str,
+        first_name: str,
+        reservation_code: str,
+        branch_name: str,
+        branch_address: str,
+        expires_at: datetime | None,
+        ttl_hours: int,
+    ) -> None:
+        safe_name = html.escape(first_name or "Cliente")
+        safe_code = html.escape(reservation_code)
+        safe_branch = html.escape(branch_name)
+        safe_address = html.escape(branch_address)
+
+        expires_text = "Sin fecha límite"
+
+        if expires_at is not None:
+            value = expires_at
+            if value.tzinfo is None:
+                value = value.replace(tzinfo=timezone.utc)
+
+            # FashionStore opera actualmente en Bolivia. Se convierte solo
+            # para la presentación del correo; la BD conserva UTC/aware.
+            local_value = value.astimezone(ZoneInfo("America/La_Paz"))
+            expires_text = local_value.strftime("%d/%m/%Y %H:%M")
+
+        safe_expires = html.escape(expires_text)
+
+        html_content = f"""
+        <!DOCTYPE html>
+        <html lang="es">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Reserva confirmada</title>
+        </head>
+        <body style="margin:0;padding:0;background:#f4f4f4;font-family:Arial,Helvetica,sans-serif;color:#171717;">
+            <table width="100%" cellspacing="0" cellpadding="0" style="padding:32px 16px;background:#f4f4f4;">
+                <tr>
+                    <td align="center">
+                        <table width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;background:#ffffff;border-radius:18px;overflow:hidden;">
+                            <tr>
+                                <td style="padding:32px;background:#111111;color:#ffffff;">
+                                    <div style="font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;opacity:.75;">FashionStore</div>
+                                    <div style="font-size:28px;font-weight:800;margin-top:8px;">Tu reserva fue confirmada</div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="padding:32px;">
+                                    <p style="margin:0 0 18px;line-height:1.6;">Hola <strong>{safe_name}</strong>, la sucursal confirmó tu reserva <strong>{safe_code}</strong>.</p>
+
+                                    <table width="100%" cellspacing="0" cellpadding="0" style="background:#f7f7f7;border-radius:14px;padding:18px;">
+                                        <tr><td style="padding:5px 0;color:#666;">Sucursal</td><td align="right" style="padding:5px 0;font-weight:700;">{safe_branch}</td></tr>
+                                        <tr><td style="padding:5px 0;color:#666;">Dirección</td><td align="right" style="padding:5px 0;font-weight:700;">{safe_address}</td></tr>
+                                        <tr><td style="padding:5px 0;color:#666;">Válida hasta</td><td align="right" style="padding:5px 0;font-weight:800;">{safe_expires}</td></tr>
+                                    </table>
+
+                                    <p style="margin:22px 0 0;line-height:1.6;color:#555;">Desde esta confirmación tienes <strong>{ttl_hours} horas</strong> para recoger y pagar tu reserva presencialmente. Si no la recoges dentro del plazo, la reserva vencerá y las prendas volverán a estar disponibles.</p>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </body>
+        </html>
+        """
+
+        EmailService.send_email(
+            to_email=email,
+            to_name=first_name,
+            subject=f"Reserva {reservation_code} confirmada · FashionStore",
+            html_content=html_content,
+        )
+
 
     # =========================
     # CÓDIGO RECUPERAR CONTRASEÑA

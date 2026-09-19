@@ -27,6 +27,7 @@ from app.models.user import User
 from app.schemas.reservation import (
     CustomerReservationCountResponse,
     CustomerReservationCreate,
+    ReservationAddItems,
     ReservationCancel,
     ReservationCreate,
     ReservationListResponse,
@@ -34,6 +35,7 @@ from app.schemas.reservation import (
     ReservationStatusUpdate,
 )
 
+from app.services.expiration_service import ExpirationService
 from app.services.reservation_service import (
     ReservationService,
 )
@@ -170,6 +172,8 @@ def list_reservations(
 
     try:
 
+        ExpirationService.expire_due_reservations(db)
+
         return (
             ReservationService
             .list_reservations(
@@ -222,6 +226,7 @@ def count_my_reservations(
 ):
 
     try:
+        ExpirationService.expire_due_reservations(db)
         return ReservationService.get_my_reservation_count(
             db=db,
             current_user=current_user,
@@ -263,6 +268,7 @@ def list_my_reservations(
 ):
 
     try:
+        ExpirationService.expire_due_reservations(db)
         return ReservationService.list_reservations(
             db=db,
             current_user=current_user,
@@ -295,6 +301,8 @@ def create_my_reservation(
 ):
 
     try:
+        ExpirationService.expire_due_reservations(db)
+
         create_data = ReservationCreate(
             customer_id=current_user.id,
             branch_id=data.branch_id,
@@ -305,6 +313,62 @@ def create_my_reservation(
         return ReservationService.create_reservation(
             db=db,
             data=create_data,
+            current_user=current_user,
+        )
+    except Exception as error:
+        handle_reservation_error(error)
+
+
+# =========================================================
+# CU28 - RESERVA PENDING EN SUCURSAL (CLIENTE)
+#
+# El frontend puede consultar esto antes de crear una nueva
+# reserva y mostrar: "Ya tienes una reserva pendiente."
+# =========================================================
+
+@router.get(
+    "/mine/pending",
+    response_model=ReservationResponse | None,
+)
+def get_my_pending_reservation(
+    branch_id: int = Query(..., ge=1),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_reservations_customer),
+):
+    try:
+        ExpirationService.expire_due_reservations(db)
+        return ReservationService.get_pending_reservation_for_branch(
+            db=db,
+            current_user=current_user,
+            branch_id=branch_id,
+        )
+    except Exception as error:
+        handle_reservation_error(error)
+
+
+# =========================================================
+# CU28 - AGREGAR PRODUCTOS A MI RESERVA PENDING
+# =========================================================
+
+@router.post(
+    "/mine/{reservation_id}/items",
+    response_model=ReservationResponse,
+)
+def add_items_to_my_reservation(
+    data: ReservationAddItems,
+    reservation_id: int = Path(..., ge=1),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_reservations_customer),
+):
+    try:
+        ExpirationService.expire_reservation_if_needed(
+            db,
+            reservation_id=reservation_id,
+        )
+        return ReservationService.add_items_to_pending_reservation(
+            db=db,
+            reservation_id=reservation_id,
+            data=data,
             current_user=current_user,
         )
     except Exception as error:
@@ -326,6 +390,10 @@ def get_my_reservation(
 ):
 
     try:
+        ExpirationService.expire_reservation_if_needed(
+            db,
+            reservation_id=reservation_id,
+        )
         return ReservationService.get_reservation(
             db=db,
             reservation_id=reservation_id,
@@ -389,6 +457,8 @@ def create_reservation(
 
     try:
 
+        ExpirationService.expire_due_reservations(db)
+
         return (
             ReservationService
             .create_reservation(
@@ -436,6 +506,11 @@ def get_reservation(
 ):
 
     try:
+
+        ExpirationService.expire_reservation_if_needed(
+            db,
+            reservation_id=reservation_id,
+        )
 
         return (
             ReservationService

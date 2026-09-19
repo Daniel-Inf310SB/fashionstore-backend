@@ -108,6 +108,10 @@ PERMISSIONS = [
         "name": "Consultar compras",
     },
     {
+        "code": "purchases.manage",
+        "name": "Gestionar estado de compras digitales",
+    },
+    {
         "code": "sales.create",
         "name": "Registrar ventas",
     },
@@ -148,6 +152,10 @@ PERMISSIONS = [
         "name": "Utilizar asistente IA",
     },
     {
+        "code": "ai.reports",
+        "name": "Generar reportes inteligentes",
+    },
+    {
         "code": "reports.view",
         "name": "Consultar reportes",
     },
@@ -180,11 +188,13 @@ ROLE_PERMISSIONS = {
         "reservations.view",
         "cart.manage",
         "purchases.view",
+        "purchases.manage",
         "sales.view",
         "sales.manage",
         "payments.view",
         "payments.manage",
         "reports.view",
+        "ai.reports",
         "dashboard.view",
     ],
 
@@ -197,8 +207,12 @@ ROLE_PERMISSIONS = {
         "inventory.movements.manage",
         "reservations.manage",
         "reservations.view",
+        "purchases.view",
+        "purchases.manage",
         "sales.view",
         "sales.manage",
+        "ai.reports",
+        "dashboard.view",
     ],
 
     "CAJERO": [
@@ -217,6 +231,7 @@ ROLE_PERMISSIONS = {
         "purchases.create",
         "purchases.view",
         "payments.process",
+        "payments.view",
         "virtual_fitting.use",
         "ai.recommendations",
         "ai.assistant",

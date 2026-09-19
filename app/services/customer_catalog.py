@@ -33,6 +33,10 @@ from app.models.color import (
     Color,
 )
 
+from app.models.collection import (
+    Collection,
+)
+
 from app.models.inventory import (
     Inventory,
 )
@@ -45,6 +49,14 @@ from app.models.product_promotion import (
     ProductPromotion,
 )
 
+from app.models.product_collection import (
+    ProductCollection,
+)
+
+from app.models.product_season import (
+    ProductSeason,
+)
+
 from app.models.product_variant import (
     ProductVariant,
 )
@@ -55,6 +67,14 @@ from app.models.promotion import (
 
 from app.models.size import (
     Size,
+)
+
+from app.models.season import (
+    Season,
+)
+
+from app.services.customer_pricing import (
+    CustomerPricingService,
 )
 
 
@@ -90,6 +110,12 @@ class CustomerCatalogService:
         max_price: Decimal | None = None,
 
         promotion: bool | None = None,
+
+        promotion_id: int | None = None,
+
+        collection_id: int | None = None,
+
+        season_id: int | None = None,
 
         in_stock: bool | None = None,
 
@@ -510,6 +536,89 @@ class CustomerCatalogService:
 
 
         # =================================================
+        # PROMOCIÓN ESPECÍFICA
+        # =================================================
+
+        if promotion_id is not None:
+
+            now = datetime.now(timezone.utc)
+
+            promotion_id_exists = (
+                db.query(ProductPromotion.id)
+                .join(
+                    Promotion,
+                    ProductPromotion.promotion_id == Promotion.id,
+                )
+                .filter(
+                    ProductPromotion.product_id == Product.id,
+                    ProductPromotion.promotion_id == promotion_id,
+                    Promotion.is_active.is_(True),
+                    Promotion.start_at <= now,
+                    Promotion.end_at >= now,
+                )
+                .exists()
+            )
+
+            query = query.filter(promotion_id_exists)
+
+
+        # =================================================
+        # COLECCIÓN ESPECÍFICA
+        # =================================================
+
+        if collection_id is not None:
+
+            today = datetime.now(timezone.utc).date()
+
+            collection_exists = (
+                db.query(ProductCollection.id)
+                .join(
+                    Collection,
+                    ProductCollection.collection_id == Collection.id,
+                )
+                .filter(
+                    ProductCollection.product_id == Product.id,
+                    ProductCollection.collection_id == collection_id,
+                    Collection.is_active.is_(True),
+                    or_(
+                        Collection.launch_date.is_(None),
+                        Collection.launch_date <= today,
+                    ),
+                )
+                .exists()
+            )
+
+            query = query.filter(collection_exists)
+
+
+        # =================================================
+        # TEMPORADA ESPECÍFICA
+        # =================================================
+
+        if season_id is not None:
+
+            today = datetime.now(timezone.utc).date()
+
+            season_exists = (
+                db.query(ProductSeason.id)
+                .join(
+                    Season,
+                    ProductSeason.season_id == Season.id,
+                )
+                .filter(
+                    ProductSeason.product_id == Product.id,
+                    ProductSeason.season_id == season_id,
+                    Season.is_active.is_(True),
+                    or_(Season.start_date.is_(None), Season.start_date <= today),
+                    or_(Season.end_date.is_(None), Season.end_date >= today),
+                )
+                .exists()
+            )
+
+            query = query.filter(season_exists)
+
+
+        # =================================================
         # STOCK DISPONIBLE
         # =================================================
 
@@ -722,6 +831,18 @@ class CustomerCatalogService:
 
 
         # =================================================
+        # PROMOCIONES ACTIVAS POR PRODUCTO
+        # =================================================
+
+        promotions_by_product = (
+            CustomerPricingService.get_active_promotions_by_product(
+                db,
+                product_ids,
+            )
+        )
+
+
+        # =================================================
         # VARIANTES ACTIVAS
         # =================================================
 
@@ -920,6 +1041,27 @@ class CustomerCatalogService:
                 )
 
 
+            original_min_price = calculated_min_price
+            original_max_price = calculated_max_price
+
+            applied_promotion = (
+                CustomerPricingService.choose_best_promotion(
+                    promotions_by_product.get(product.id),
+                    original_min_price,
+                )
+            )
+
+            if applied_promotion is not None:
+                calculated_min_price = CustomerPricingService.apply_discount(
+                    original_min_price,
+                    applied_promotion,
+                )
+                calculated_max_price = CustomerPricingService.apply_discount(
+                    original_max_price,
+                    applied_promotion,
+                )
+
+
             # =============================================
             # STOCK
             # =============================================
@@ -984,6 +1126,19 @@ class CustomerCatalogService:
 
                     "max_price":
                         calculated_max_price,
+
+                    "original_min_price":
+                        original_min_price,
+
+                    "original_max_price":
+                        original_max_price,
+
+                    "has_discount":
+                        applied_promotion is not None
+                        and calculated_min_price < original_min_price,
+
+                    "promotion":
+                        CustomerPricingService.promotion_payload(applied_promotion),
 
                     "cover_image_url":
                         product.cover_image_url,

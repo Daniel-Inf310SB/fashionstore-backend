@@ -196,7 +196,8 @@ class ReservationCreate(BaseModel):
         max_length=2000,
     )
 
-    expires_at: datetime | None = None
+    # expires_at no se recibe al crear. El backend lo asigna al
+    # confirmar la reserva, cuando empieza el plazo de retiro.
 
     items: list[
         ReservationItemCreate
@@ -220,6 +221,26 @@ class CustomerReservationCreate(BaseModel):
         ...,
         ge=1,
     )
+
+    notes: str | None = Field(
+        default=None,
+        max_length=2000,
+    )
+
+    items: list[
+        ReservationItemCreate
+    ] = Field(
+        ...,
+        min_length=1,
+        max_length=50,
+    )
+
+
+# =========================================================
+# CU28 - AGREGAR PRODUCTOS A MI RESERVA PENDING
+# =========================================================
+
+class ReservationAddItems(BaseModel):
 
     notes: str | None = Field(
         default=None,

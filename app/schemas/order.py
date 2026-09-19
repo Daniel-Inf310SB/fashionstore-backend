@@ -7,43 +7,62 @@ from pydantic import BaseModel, ConfigDict, Field
 
 OrderStatus = Literal[
     "PENDING_PAYMENT",
-    "PAID",
-    "PROCESSING",
-    "READY",
-    "COMPLETED",
-    "CANCELLED",
     "PAYMENT_FAILED",
-]
-
-PaymentMethod = Literal[
-    "CASH",
-    "CARD",
-    "QR",
-    "TRANSFER",
-]
-
-PaymentStatus = Literal[
-    "PENDING",
-    "PROCESSING",
-    "APPROVED",
-    "REJECTED",
-    "FAILED",
+    "PAID",
+    "PREPARING",
+    "READY_FOR_PICKUP",
+    "SHIPPED",
+    "DELIVERED",
+    "COMPLETED",
     "CANCELLED",
     "REFUNDED",
 ]
 
+PaymentMethod = Literal["CASH", "CARD", "QR", "TRANSFER"]
+PaymentStatus = Literal[
+    "PENDING", "PROCESSING", "APPROVED", "REJECTED",
+    "FAILED", "CANCELLED", "REFUNDED",
+]
 
-# =========================================================
-# CU33 - CREAR COMPRA DESDE CARRITO
-# =========================================================
 
 class OrderCreate(BaseModel):
     cart_id: int = Field(..., ge=1)
+    delivery_type: Literal["PICKUP", "DELIVERY"] = "PICKUP"
+    shipping_address: str | None = Field(default=None, max_length=500)
 
 
-# =========================================================
-# RESÚMENES
-# =========================================================
+class OrderStatusUpdate(BaseModel):
+    status: Literal[
+        "PREPARING", "READY_FOR_PICKUP", "SHIPPED", "DELIVERED",
+        "COMPLETED", "CANCELLED",
+    ]
+    note: str | None = Field(default=None, max_length=500)
+    tracking_code: str | None = Field(default=None, max_length=120)
+
+
+class CheckoutItemResponse(BaseModel):
+    product_variant_id: int
+    sku: str
+    product_name: str
+    size: str
+    color: str
+    quantity: int
+    unit_price: Decimal
+    subtotal: Decimal
+
+
+class CheckoutPreviewResponse(BaseModel):
+    cart_id: int
+    branch_id: int
+    branch_name: str
+    items: list[CheckoutItemResponse]
+    total_items: int
+    total_units: int
+    subtotal: Decimal
+    discount_amount: Decimal
+    total_amount: Decimal
+    currency: str = "BOB"
+
 
 class OrderCustomerResponse(BaseModel):
     id: int
@@ -52,7 +71,6 @@ class OrderCustomerResponse(BaseModel):
     email: str
     phone: str | None = None
     document_number: str | None = None
-
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -62,7 +80,6 @@ class OrderBranchResponse(BaseModel):
     address: str
     phone: str | None = None
     city_id: int
-
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -72,14 +89,12 @@ class OrderProductResponse(BaseModel):
     name: str
     brand: str | None = None
     cover_image_url: str | None = None
-
     model_config = ConfigDict(from_attributes=True)
 
 
 class OrderSizeResponse(BaseModel):
     id: int
     name: str
-
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -87,7 +102,6 @@ class OrderColorResponse(BaseModel):
     id: int
     name: str
     hex_code: str | None = None
-
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -101,7 +115,6 @@ class OrderVariantResponse(BaseModel):
     product: OrderProductResponse
     size: OrderSizeResponse
     color: OrderColorResponse
-
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -114,7 +127,6 @@ class OrderItemResponse(BaseModel):
     subtotal: Decimal
     created_at: datetime
     product_variant: OrderVariantResponse
-
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -130,7 +142,6 @@ class OrderPaymentResponse(BaseModel):
     external_transaction_id: str | None = None
     paid_at: datetime | None = None
     created_at: datetime
-
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -146,13 +157,8 @@ class OrderReceiptResponse(BaseModel):
     pdf_url: str | None = None
     email_status: str
     issued_at: datetime
-
     model_config = ConfigDict(from_attributes=True)
 
-
-# =========================================================
-# CU33 / CU34 - RESPUESTA DE ORDEN
-# =========================================================
 
 class OrderResponse(BaseModel):
     id: int
@@ -163,17 +169,42 @@ class OrderResponse(BaseModel):
     subtotal: Decimal
     discount_amount: Decimal
     total_amount: Decimal
+    delivery_type: Literal["PICKUP", "DELIVERY"]
+    shipping_address: str | None = None
+    tracking_code: str | None = None
+    paid_at: datetime | None = None
+    ready_for_pickup_at: datetime | None = None
+    shipped_at: datetime | None = None
+    delivered_at: datetime | None = None
+    completed_at: datetime | None = None
+    cancelled_at: datetime | None = None
+    payment_expires_at: datetime
     created_at: datetime
     updated_at: datetime
-
     total_items: int
     total_units: int
-
     customer: OrderCustomerResponse
     branch: OrderBranchResponse
     items: list[OrderItemResponse]
     payments: list[OrderPaymentResponse] = Field(default_factory=list)
     receipt: OrderReceiptResponse | None = None
+    allowed_transitions: list[OrderStatus] = Field(default_factory=list)
+
+
+class OrderStatusCount(BaseModel):
+    status: OrderStatus
+    count: int
+
+
+class OrderManagementSummaryResponse(BaseModel):
+    branch_id: int | None = None
+    branch_name: str | None = None
+    total_orders: int
+    total_revenue: Decimal
+    attention_count: int
+    pickup_ready_count: int
+    delivery_in_progress_count: int
+    status_counts: list[OrderStatusCount] = Field(default_factory=list)
 
 
 class OrderListResponse(BaseModel):

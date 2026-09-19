@@ -47,7 +47,9 @@ def seed_catalog_relations(
 
     promotions = list(
         db.scalars(
-            select(Promotion).order_by(
+            select(Promotion).where(
+                Promotion.is_active.is_(True)
+            ).order_by(
                 Promotion.id
             )
         ).all()
@@ -124,8 +126,8 @@ def seed_catalog_relations(
         collection_total += 1
 
         # No todos los productos tienen promoción.
-        # Aproximadamente uno de cada 4.
-        if index % 4 == 0:
+        # Aproximadamente uno de cada 5 y solo con promociones activas.
+        if index % 5 == 0:
             promotion = promotions[
                 index % len(promotions)
             ]

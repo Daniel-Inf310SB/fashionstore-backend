@@ -108,6 +108,21 @@ def get_customer_catalog(
         default=None,
     ),
 
+    promotion_id: int | None = Query(
+        default=None,
+        ge=1,
+    ),
+
+    collection_id: int | None = Query(
+        default=None,
+        ge=1,
+    ),
+
+    season_id: int | None = Query(
+        default=None,
+        ge=1,
+    ),
+
     in_stock: bool | None = Query(
         default=None,
     ),
@@ -168,6 +183,15 @@ def get_customer_catalog(
 
             promotion=
                 promotion,
+
+            promotion_id=
+                promotion_id,
+
+            collection_id=
+                collection_id,
+
+            season_id=
+                season_id,
 
             in_stock=
                 in_stock,

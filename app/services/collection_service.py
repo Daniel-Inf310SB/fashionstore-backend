@@ -22,6 +22,7 @@ from app.services.audit_log_service import (
 )
 
 
+from app.services.marketing_notification_service import MarketingNotificationService
 class CollectionService:
 
     # =====================================================
@@ -332,6 +333,11 @@ class CollectionService:
 
         db.flush()
 
+        MarketingNotificationService.schedule_collection(
+            db,
+            collection=collection,
+        )
+
         AuditLogService.log(
             db=db,
 
@@ -507,6 +513,11 @@ class CollectionService:
 
         db.flush()
 
+        MarketingNotificationService.schedule_collection(
+            db,
+            collection=collection,
+        )
+
         new_values = {
             "name":
                 collection.name,
@@ -604,6 +615,12 @@ class CollectionService:
         )
 
         db.flush()
+
+        MarketingNotificationService.cancel_pending_for_entity(
+            db,
+            campaign_type="COLLECTION",
+            entity_id=collection.id,
+        )
 
         AuditLogService.log(
             db=db,

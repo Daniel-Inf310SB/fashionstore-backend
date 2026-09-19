@@ -33,6 +33,8 @@ from app.models.user import (
     User,
 )
 
+from app.services.customer_pricing import CustomerPricingService
+
 
 class CartService:
 
@@ -139,6 +141,7 @@ class CartService:
 
     @staticmethod
     def _serialize(
+        db: Session,
         cart: ShoppingCart,
     ) -> dict:
 
@@ -150,12 +153,31 @@ class CartService:
             "0.00"
         )
 
+        original_total_amount = Decimal(
+            "0.00"
+        )
+
+        total_discount_amount = Decimal(
+            "0.00"
+        )
+
 
         sorted_items = sorted(
             cart.items,
 
             key=lambda item:
                 item.id,
+        )
+
+        product_ids = [
+            item.product_variant.product_id
+            for item in sorted_items
+            if item.product_variant is not None
+            and item.product_variant.product is not None
+        ]
+        promotions_by_product = CustomerPricingService.get_active_promotions_by_product(
+            db,
+            list(set(product_ids)),
         )
 
 
@@ -182,16 +204,28 @@ class CartService:
             )
 
 
-            unit_price = (
+            original_unit_price = (
                 base_price
                 +
                 additional_price
-            ).quantize(
-                Decimal(
-                    "0.01"
-                )
+            ).quantize(Decimal("0.01"))
+
+            applied_promotion = CustomerPricingService.choose_best_promotion(
+                promotions_by_product.get(variant.product_id),
+                original_unit_price,
             )
 
+            unit_price = CustomerPricingService.apply_discount(
+                original_unit_price,
+                applied_promotion,
+            )
+
+
+            original_subtotal = (
+                original_unit_price
+                *
+                item.quantity
+            ).quantize(Decimal("0.01"))
 
             subtotal = (
                 unit_price
@@ -203,6 +237,10 @@ class CartService:
                 )
             )
 
+            discount_amount = (
+                original_subtotal - subtotal
+            ).quantize(Decimal("0.01"))
+
 
             total_units += (
                 item.quantity
@@ -212,6 +250,9 @@ class CartService:
             total_amount += (
                 subtotal
             )
+
+            original_total_amount += original_subtotal
+            total_discount_amount += discount_amount
 
 
             items.append(
@@ -228,11 +269,26 @@ class CartService:
                     "quantity":
                         item.quantity,
 
+                    "original_unit_price":
+                        original_unit_price,
+
                     "unit_price":
                         unit_price,
 
+                    "discount_amount":
+                        discount_amount,
+
+                    "original_subtotal":
+                        original_subtotal,
+
                     "subtotal":
                         subtotal,
+
+                    "has_discount":
+                        discount_amount > Decimal("0.00"),
+
+                    "promotion":
+                        CustomerPricingService.promotion_payload(applied_promotion),
 
                     "created_at":
                         item.created_at,
@@ -275,6 +331,12 @@ class CartService:
 
             "total_units":
                 total_units,
+
+            "original_total_amount":
+                original_total_amount.quantize(Decimal("0.01")),
+
+            "discount_amount":
+                total_discount_amount.quantize(Decimal("0.01")),
 
             "total_amount":
                 total_amount.quantize(
@@ -501,6 +563,7 @@ class CartService:
             "items": [
                 CartService
                 ._serialize(
+                    db,
                     cart
                 )
 
@@ -546,6 +609,7 @@ class CartService:
         return (
             CartService
             ._serialize(
+                db,
                 cart
             )
         )
@@ -751,7 +815,7 @@ class CartService:
                 "cart": None,
             }
 
-        serialized = CartService._serialize(cart)
+        serialized = CartService._serialize(db, cart)
 
         return {
             "branch_id": branch_id,
@@ -883,7 +947,7 @@ class CartService:
                 cart.id,
             )
 
-            return CartService._serialize(refreshed)
+            return CartService._serialize(db, refreshed)
 
         except Exception:
             db.rollback()
@@ -938,7 +1002,7 @@ class CartService:
                 cart.id,
             )
 
-            return CartService._serialize(refreshed)
+            return CartService._serialize(db, refreshed)
 
         except Exception:
             db.rollback()
@@ -972,7 +1036,7 @@ class CartService:
                 cart_id,
             )
 
-            return CartService._serialize(refreshed)
+            return CartService._serialize(db, refreshed)
 
         except Exception:
             db.rollback()

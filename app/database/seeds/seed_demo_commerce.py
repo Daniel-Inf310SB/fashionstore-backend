@@ -9,9 +9,9 @@ from sqlalchemy.orm import Session
 from app.database.seeds.seed_demo_config import (
     ACTIVE_CARTS,
     ABANDONED_CARTS,
-    ORDERS_PER_BRANCH_MONTH,
-    RESERVATIONS_PER_BRANCH,
-    SALES_PER_BRANCH_MONTH,
+    ORDERS_TOTAL,
+    RESERVATIONS_TOTAL,
+    SALES_TOTAL,
     SEED_UNTIL,
     SEED_YEAR,
 )
@@ -200,34 +200,40 @@ def _payment_and_receipt_for_sale(db: Session, sale: Sale, at: datetime, method:
 
 
 def _seed_sales(db: Session, branches: list[Branch], cashiers: dict[int, list[User]], inventory: dict[int, list[Inventory]], customers: list[User]) -> int:
-    print("🌱 Ventas presenciales históricas 2026...")
-    count = 0
+    print(f"🌱 Ventas presenciales históricas 2026: {SALES_TOTAL}...")
     methods = ["CASH", "QR", "CARD"]
-    for month in range(1, SEED_UNTIL.month + 1):
-        for b_index, branch in enumerate(branches):
-            branch_cashiers = cashiers[branch.id]
-            for n in range(SALES_PER_BRANCH_MONTH):
-                day = 3 + ((b_index * 4 + n * 3) % 24)
-                if month == SEED_UNTIL.month and day > SEED_UNTIL.day:
-                    day = 5 + (n % max(1, SEED_UNTIL.day - 5))
-                at = datetime(SEED_YEAR, month, day, 10 + (n % 9), (b_index * 7 + n * 11) % 60, tzinfo=timezone.utc)
-                code = f"VTA-{SEED_YEAR}{month:02d}-{branch.id:02d}-{n+1:02d}"
-                seed = month * 1000 + branch.id * 20 + n
-                status = "PAID"
-                if month == SEED_UNTIL.month and n == SALES_PER_BRANCH_MONTH - 1:
-                    status = "PENDING"
-                elif seed % 29 == 0:
-                    status = "CANCELLED"
-                customer = None if seed % 5 == 0 else customers[seed % len(customers)]
-                cashier = branch_cashiers[n % len(branch_cashiers)]
-                sale = _build_sale(db, code=code, branch=branch, cashier=cashier, customer=customer, inventories=inventory[branch.id], at=at, seed=seed, status=status)
-                if sale.status == "PAID":
-                    _payment_and_receipt_for_sale(db, sale, at, methods[seed % len(methods)], count + 1)
-                count += 1
+    count = 0
+
+    for i in range(SALES_TOTAL):
+        branch = branches[i % len(branches)]
+        branch_cashiers = cashiers[branch.id]
+        month = 1 + (i % SEED_UNTIL.month)
+        max_day = SEED_UNTIL.day if month == SEED_UNTIL.month else 28
+        day = 1 + ((i * 7 + branch.id) % max_day)
+        at = datetime(SEED_YEAR, month, day, 9 + (i % 10), (i * 13) % 60, tzinfo=timezone.utc)
+        code = f"VTA-{SEED_YEAR}-{i + 1:04d}"
+        seed = 10000 + i
+
+        if i % 17 == 0:
+            status = "CANCELLED"
+        elif i % 13 == 0:
+            status = "PENDING"
+        else:
+            status = "PAID"
+
+        customer = None if i % 5 == 0 else customers[i % len(customers)]
+        cashier = branch_cashiers[i % len(branch_cashiers)]
+        sale = _build_sale(
+            db, code=code, branch=branch, cashier=cashier, customer=customer,
+            inventories=inventory[branch.id], at=at, seed=seed, status=status,
+        )
+        if sale.status == "PAID":
+            _payment_and_receipt_for_sale(db, sale, at, methods[i % len(methods)], i + 1)
+        count += 1
+
     db.flush()
     print(f"✅ Ventas seed procesadas: {count}.")
     return count
-
 
 def _build_order(db: Session, *, code: str, branch: Branch, customer: User, inventories: list[Inventory], at: datetime, seed: int, status: str) -> Order:
     existing = db.scalar(select(Order).where(Order.order_code == code))
@@ -241,13 +247,13 @@ def _build_order(db: Session, *, code: str, branch: Branch, customer: User, inve
     for idx, (inv, qty) in enumerate(items, 1):
         price = _product_price(inv.product_variant)
         db.add(OrderItem(order_id=order.id, product_variant_id=inv.product_variant_id, quantity=qty, unit_price=price, subtotal=_money(price*qty), created_at=at))
-        if status in {"PAID", "PROCESSING", "READY", "COMPLETED"}:
+        if status in {"PAID", "PREPARING", "READY_FOR_PICKUP", "SHIPPED", "DELIVERED", "COMPLETED"}:
             _decrease_stock(db, inv, qty, user_id=customer.id, reference_type="ORDER", reference_id=order.id, reference_code=f"SEED-ORDER-{order.id}-{idx}", at=at, reason=f"Compra digital {code}.")
     return order
 
 
 def _payment_and_receipt_for_order(db: Session, order: Order, at: datetime, method: str, sequence: int) -> None:
-    approved = order.status in {"PAID", "PROCESSING", "READY", "COMPLETED"}
+    approved = order.status in {"PAID", "PREPARING", "READY_FOR_PICKUP", "SHIPPED", "DELIVERED", "COMPLETED"}
     pcode = f"PAY-ORDER-{order.order_code}"
     payment = db.scalar(select(Payment).where(Payment.payment_code == pcode))
     if payment is None:
@@ -268,57 +274,92 @@ def _payment_and_receipt_for_order(db: Session, order: Order, at: datetime, meth
 
 
 def _seed_orders(db: Session, branches: list[Branch], inventory: dict[int, list[Inventory]], customers: list[User]) -> int:
-    print("🌱 Compras digitales históricas 2026...")
-    count = 0
+    print(f"🌱 Compras digitales históricas 2026: {ORDERS_TOTAL}...")
     methods = ["QR", "CARD", "TRANSFER"]
-    statuses = ["COMPLETED", "COMPLETED", "PAID", "PROCESSING", "PAYMENT_FAILED", "PENDING_PAYMENT"]
-    for month in range(1, SEED_UNTIL.month + 1):
-        for b_index, branch in enumerate(branches):
-            for n in range(ORDERS_PER_BRANCH_MONTH):
-                seed = month * 2000 + branch.id * 30 + n
-                day = 7 + ((b_index * 3 + n * 5) % 19)
-                if month == SEED_UNTIL.month and day > SEED_UNTIL.day:
-                    day = 4 + n
-                at = datetime(SEED_YEAR, month, day, 15 + (n % 5), (seed * 7) % 60, tzinfo=timezone.utc)
-                code = f"ORD-{SEED_YEAR}{month:02d}-{branch.id:02d}-{n+1:02d}"
-                status = statuses[seed % len(statuses)]
-                order = _build_order(db, code=code, branch=branch, customer=customers[seed % len(customers)], inventories=inventory[branch.id], at=at, seed=seed, status=status)
-                _payment_and_receipt_for_order(db, order, at, methods[seed % len(methods)], count + 1)
-                count += 1
+    statuses = [
+        "COMPLETED", "DELIVERED", "SHIPPED", "PREPARING",
+        "PAID", "PAYMENT_FAILED", "PENDING_PAYMENT",
+    ]
+    count = 0
+
+    for i in range(ORDERS_TOTAL):
+        branch = branches[(i * 5) % len(branches)]
+        month = 1 + ((i * 2) % SEED_UNTIL.month)
+        max_day = SEED_UNTIL.day if month == SEED_UNTIL.month else 28
+        day = 1 + ((i * 9 + branch.id) % max_day)
+        at = datetime(SEED_YEAR, month, day, 12 + (i % 8), (i * 11) % 60, tzinfo=timezone.utc)
+        code = f"ORD-{SEED_YEAR}-{i + 1:04d}"
+        seed = 30000 + i
+        status = statuses[i % len(statuses)]
+        customer = customers[(i * 3) % len(customers)]
+        order = _build_order(
+            db, code=code, branch=branch, customer=customer,
+            inventories=inventory[branch.id], at=at, seed=seed, status=status,
+        )
+        _payment_and_receipt_for_order(db, order, at, methods[i % len(methods)], i + 1)
+        count += 1
+
     db.flush()
     print(f"✅ Órdenes seed procesadas: {count}.")
     return count
 
-
 def _seed_reservations(db: Session, branches: list[Branch], inventory: dict[int, list[Inventory]], customers: list[User]) -> int:
-    print("🌱 Reservas coherentes por sucursal...")
+    print(f"🌱 Reservas históricas y actuales: {RESERVATIONS_TOTAL}...")
     statuses = ["PENDING", "CONFIRMED", "PREPARING", "READY", "ATTENDED", "COMPLETED", "CANCELLED", "EXPIRED"]
     count = 0
-    for b_index, branch in enumerate(branches):
-        for n in range(RESERVATIONS_PER_BRANCH):
-            seed = 50000 + branch.id * 50 + n
-            code = f"RSV-2026-{branch.id:02d}-{n+1:03d}"
-            if db.scalar(select(Reservation.id).where(Reservation.reservation_code == code)) is not None:
-                count += 1; continue
-            at = datetime(SEED_YEAR, 8 + (n % 2), min(14, 2 + n * 2), 11 + n, (seed * 3) % 60, tzinfo=timezone.utc)
-            status = statuses[(b_index + n) % len(statuses)]
-            reservation = Reservation(reservation_code=code, customer_id=customers[seed % len(customers)].id, branch_id=branch.id, status=status, notes="Reserva demo FashionStore 2026.", expires_at=at + timedelta(days=3), prepared_at=at + timedelta(hours=4) if status in {"PREPARING", "READY", "ATTENDED", "COMPLETED"} else None, attended_at=at + timedelta(days=1) if status in {"ATTENDED", "COMPLETED"} else None, completed_at=at + timedelta(days=1, hours=1) if status == "COMPLETED" else None, cancelled_at=at + timedelta(hours=6) if status == "CANCELLED" else None, created_at=at, updated_at=at)
-            db.add(reservation); db.flush()
-            items = _select_items(inventory[branch.id], seed, 1 + (n % 2), max_qty=1)
-            for idx, (inv, qty) in enumerate(items, 1):
-                item_status = "PENDING"
-                if status in {"CONFIRMED", "PREPARING", "READY"}: item_status = "RESERVED"
-                elif status in {"ATTENDED", "COMPLETED"}: item_status = "CONSUMED"
-                elif status in {"CANCELLED", "EXPIRED"}: item_status = "RELEASED"
-                db.add(ReservationItem(reservation_id=reservation.id, product_variant_id=inv.product_variant_id, quantity=qty, unit_price=_product_price(inv.product_variant), status=item_status, created_at=at))
-                if item_status == "RESERVED":
-                    _reserve_stock(db, inv, qty, reference_id=reservation.id, reference_code=f"SEED-RSV-{reservation.id}-{idx}", at=at)
-                elif item_status == "CONSUMED":
-                    _decrease_stock(db, inv, qty, user_id=None, reference_type="RESERVATION", reference_id=reservation.id, reference_code=f"SEED-RSV-CONSUME-{reservation.id}-{idx}", at=at + timedelta(days=1), reason=f"Reserva atendida {code}.")
-            count += 1
-    db.flush(); print(f"✅ Reservas seed procesadas: {count}.")
-    return count
 
+    for i in range(RESERVATIONS_TOTAL):
+        branch = branches[i % len(branches)]
+        seed = 50000 + i
+        code = f"RSV-{SEED_YEAR}-{i + 1:04d}"
+        if db.scalar(select(Reservation.id).where(Reservation.reservation_code == code)) is not None:
+            count += 1
+            continue
+
+        month = 6 + (i % 4)
+        max_day = SEED_UNTIL.day if month == SEED_UNTIL.month else 28
+        if month > SEED_UNTIL.month:
+            month = SEED_UNTIL.month
+        day = 1 + ((i * 5 + branch.id) % (SEED_UNTIL.day if month == SEED_UNTIL.month else 28))
+        at = datetime(SEED_YEAR, month, day, 10 + (i % 8), (i * 7) % 60, tzinfo=timezone.utc)
+        status = statuses[i % len(statuses)]
+        reservation = Reservation(
+            reservation_code=code, customer_id=customers[i % len(customers)].id, branch_id=branch.id,
+            status=status, notes="Reserva demo FashionStore 2026.", expires_at=at + timedelta(days=3),
+            prepared_at=at + timedelta(hours=4) if status in {"PREPARING", "READY", "ATTENDED", "COMPLETED"} else None,
+            attended_at=at + timedelta(days=1) if status in {"ATTENDED", "COMPLETED"} else None,
+            completed_at=at + timedelta(days=1, hours=1) if status == "COMPLETED" else None,
+            cancelled_at=at + timedelta(hours=6) if status == "CANCELLED" else None,
+            created_at=at, updated_at=at,
+        )
+        db.add(reservation)
+        db.flush()
+
+        items = _select_items(inventory[branch.id], seed, 1 + (i % 2), max_qty=1)
+        for idx, (inv, qty) in enumerate(items, 1):
+            item_status = "PENDING"
+            if status in {"CONFIRMED", "PREPARING", "READY"}:
+                item_status = "RESERVED"
+            elif status in {"ATTENDED", "COMPLETED"}:
+                item_status = "CONSUMED"
+            elif status in {"CANCELLED", "EXPIRED"}:
+                item_status = "RELEASED"
+
+            db.add(ReservationItem(
+                reservation_id=reservation.id, product_variant_id=inv.product_variant_id,
+                quantity=qty, unit_price=_product_price(inv.product_variant),
+                status=item_status, created_at=at,
+            ))
+
+            if item_status == "RESERVED":
+                _reserve_stock(db, inv, qty, reference_id=reservation.id, reference_code=f"SEED-RSV-{reservation.id}-{idx}", at=at)
+            elif item_status == "CONSUMED":
+                _decrease_stock(db, inv, qty, user_id=None, reference_type="RESERVATION", reference_id=reservation.id, reference_code=f"SEED-RSV-CONSUME-{reservation.id}-{idx}", at=at + timedelta(days=1), reason=f"Reserva atendida {code}.")
+        count += 1
+
+    db.flush()
+    print(f"✅ Reservas seed procesadas: {count}.")
+    return count
 
 def _seed_carts(db: Session, branches: list[Branch], inventory: dict[int, list[Inventory]], customers: list[User]) -> int:
     print("🌱 Carritos activos y abandonados...")

@@ -16,6 +16,7 @@ from app.schemas.season import (
 from app.services.audit_log_service import AuditLogService
 
 
+from app.services.marketing_notification_service import MarketingNotificationService
 class SeasonService:
 
     # =====================================================
@@ -250,6 +251,11 @@ class SeasonService:
 
         db.flush()
 
+        MarketingNotificationService.schedule_season(
+            db,
+            season=season,
+        )
+
         AuditLogService.log(
             db=db,
             user_id=user_id,
@@ -380,6 +386,11 @@ class SeasonService:
 
         db.flush()
 
+        MarketingNotificationService.schedule_season(
+            db,
+            season=season,
+        )
+
         new_values = {
             "name": season.name,
             "description": season.description,
@@ -446,6 +457,12 @@ class SeasonService:
         season.is_active = False
 
         db.flush()
+
+        MarketingNotificationService.cancel_pending_for_entity(
+            db,
+            campaign_type="SEASON",
+            entity_id=season.id,
+        )
 
         AuditLogService.log(
             db=db,

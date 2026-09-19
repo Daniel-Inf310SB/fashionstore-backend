@@ -1,0 +1,1 @@
+# Jobs internos de FashionStore.

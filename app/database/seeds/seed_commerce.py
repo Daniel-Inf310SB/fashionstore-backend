@@ -5,7 +5,7 @@ from app.database.seeds.seed_demo_commerce import seed_demo_commerce
 
 
 def seed_commerce(db: Session) -> None:
-    """Orquestador de Iteración 2 con dataset comercial grande y coherente."""
+    """Orquestador de Iteración 2 con dataset comercial 2026 realista y coherente."""
     seed_demo_commerce(db)
 
 

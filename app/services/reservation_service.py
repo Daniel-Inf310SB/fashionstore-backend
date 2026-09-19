@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import logging
 import math
 
 from datetime import (
     datetime,
+    timedelta,
     timezone,
 )
 
@@ -21,6 +23,7 @@ from sqlalchemy.orm import (
     joinedload,
 )
 
+from app.core.config import settings
 from app.models.audit_log import AuditLog
 
 from app.models.branch import Branch
@@ -54,8 +57,15 @@ from app.models.size import Size
 from app.models.user import User
 
 from app.schemas.reservation import (
+    ReservationAddItems,
     ReservationCreate,
 )
+
+from app.services.email_service import EmailService
+from app.services.notification_service import NotificationService
+
+
+logger = logging.getLogger(__name__)
 
 
 class ReservationService:
@@ -91,6 +101,14 @@ class ReservationService:
     ACTIVE_ITEM_STATUSES = {
         "PENDING",
         "RESERVED",
+    }
+
+    # El plazo de retiro empieza cuando la sucursal CONFIRMA
+    # la reserva. Una solicitud PENDING todavía no tiene expires_at.
+    EXPIRABLE_STATUSES = {
+        "CONFIRMED",
+        "PREPARING",
+        "READY",
     }
 
 
@@ -488,7 +506,7 @@ class ReservationService:
 
         reserved_after: int,
 
-        user_id: int,
+        user_id: int | None,
 
         reason: str,
     ) -> None:
@@ -1106,12 +1124,13 @@ class ReservationService:
         customer_id: int,
         branch_id: int,
         variant_ids: set[int],
+        exclude_reservation_id: int | None = None,
     ) -> None:
 
         if not variant_ids:
             return
 
-        conflicts = (
+        conflict_query = (
             db.query(
                 Reservation.reservation_code,
                 ProductVariant.sku,
@@ -1135,8 +1154,14 @@ class ReservationService:
                     ReservationService.ACTIVE_ITEM_STATUSES
                 ),
             )
-            .all()
         )
+
+        if exclude_reservation_id is not None:
+            conflict_query = conflict_query.filter(
+                Reservation.id != exclude_reservation_id
+            )
+
+        conflicts = conflict_query.all()
 
         if not conflicts:
             return
@@ -1151,6 +1176,261 @@ class ReservationService:
             "en la misma sucursal. "
             f"Conflictos: {details}."
         )
+
+
+    # =====================================================
+    # CU28 - RESERVA PENDING DEL CLIENTE EN UNA SUCURSAL
+    # =====================================================
+
+    @staticmethod
+    def get_pending_reservation_for_branch(
+        db: Session,
+        *,
+        current_user: User,
+        branch_id: int,
+    ) -> dict | None:
+
+        if not ReservationService._is_customer(current_user):
+            raise PermissionError(
+                "Esta operación corresponde al cliente."
+            )
+
+        reservation = (
+            ReservationService._base_query(db)
+            .filter(
+                Reservation.customer_id == current_user.id,
+                Reservation.branch_id == branch_id,
+                Reservation.status == "PENDING",
+            )
+            .order_by(Reservation.id.desc())
+            .first()
+        )
+
+        if reservation is None:
+            return None
+
+        return ReservationService._serialize(reservation)
+
+
+    # =====================================================
+    # CU28 - AGREGAR PRODUCTOS A UNA RESERVA PENDING
+    #
+    # No reinicia expires_at. Una reserva mantiene su
+    # vencimiento original aunque se agreguen más prendas.
+    # =====================================================
+
+    @staticmethod
+    def add_items_to_pending_reservation(
+        db: Session,
+        *,
+        reservation_id: int,
+        data: ReservationAddItems,
+        current_user: User,
+    ) -> dict:
+
+        # Bloqueamos solo la fila principal para serializar dos altas
+        # concurrentes sin repetir el problema de FOR UPDATE + joinedload.
+        reservation = (
+            db.query(Reservation)
+            .filter(Reservation.id == reservation_id)
+            .with_for_update()
+            .first()
+        )
+
+        if reservation is None:
+            raise LookupError("La reserva no existe.")
+
+        ReservationService._validate_reservation_access(
+            db,
+            reservation,
+            current_user,
+        )
+
+        if reservation.status != "PENDING":
+            raise ValueError(
+                "Solo puedes agregar productos a una reserva PENDING."
+            )
+
+        now = datetime.now(timezone.utc)
+        expires_at = reservation.expires_at
+
+        if expires_at is not None:
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=timezone.utc)
+
+            if expires_at <= now:
+                raise ValueError(
+                    "La reserva ya venció. Actualiza tus reservas antes de agregar productos."
+                )
+
+        requested_items: dict[int, int] = {}
+        for item in data.items:
+            requested_items[item.product_variant_id] = (
+                requested_items.get(item.product_variant_id, 0)
+                + item.quantity
+            )
+
+        ReservationService._validate_no_active_duplicate_items(
+            db,
+            customer_id=reservation.customer_id,
+            branch_id=reservation.branch_id,
+            variant_ids=set(requested_items.keys()),
+            exclude_reservation_id=reservation.id,
+        )
+
+        existing_items = {
+            item.product_variant_id: item
+            for item in (
+                db.query(ReservationItem)
+                .filter(ReservationItem.reservation_id == reservation.id)
+                .all()
+            )
+        }
+
+        added_items: list[dict] = []
+
+        try:
+            for variant_id, quantity in requested_items.items():
+                variant = (
+                    db.query(ProductVariant)
+                    .join(Product, ProductVariant.product_id == Product.id)
+                    .join(Size, ProductVariant.size_id == Size.id)
+                    .join(Color, ProductVariant.color_id == Color.id)
+                    .options(
+                        joinedload(ProductVariant.product),
+                        joinedload(ProductVariant.size),
+                        joinedload(ProductVariant.color),
+                    )
+                    .filter(
+                        ProductVariant.id == variant_id,
+                        ProductVariant.is_active.is_(True),
+                        Product.is_active.is_(True),
+                        Size.is_active.is_(True),
+                        Color.is_active.is_(True),
+                    )
+                    .first()
+                )
+
+                if variant is None:
+                    raise LookupError(
+                        f"La variante {variant_id} no existe o está inactiva."
+                    )
+
+                inventory = (
+                    db.query(Inventory)
+                    .filter(
+                        Inventory.branch_id == reservation.branch_id,
+                        Inventory.product_variant_id == variant.id,
+                        Inventory.is_active.is_(True),
+                    )
+                    .with_for_update()
+                    .first()
+                )
+
+                if inventory is None:
+                    raise LookupError(
+                        f"La variante {variant.sku} no tiene inventario activo en esta sucursal."
+                    )
+
+                available_quantity = (
+                    inventory.stock_quantity - inventory.reserved_quantity
+                )
+
+                existing_item = existing_items.get(variant.id)
+
+                requested_total = quantity
+                if (
+                    existing_item is not None
+                    and existing_item.status == "PENDING"
+                ):
+                    requested_total += existing_item.quantity
+
+                if available_quantity < requested_total:
+                    raise ValueError(
+                        f"Stock insuficiente para {variant.sku}. "
+                        f"Disponible: {available_quantity}. "
+                        f"Total solicitado en la reserva: {requested_total}."
+                    )
+
+                if existing_item is not None:
+                    if existing_item.status == "RESERVED":
+                        raise ValueError(
+                            f"La variante {variant.sku} ya fue apartada físicamente. "
+                            "No puedes aumentar su cantidad desde la web."
+                        )
+
+                    if existing_item.status != "PENDING":
+                        raise ValueError(
+                            f"La variante {variant.sku} ya no admite cambios en esta reserva."
+                        )
+
+                    existing_item.quantity += quantity
+                    item_id = existing_item.id
+                    final_quantity = existing_item.quantity
+                else:
+                    unit_price = (
+                        Decimal(variant.product.base_price)
+                        + Decimal(variant.additional_price or 0)
+                    ).quantize(Decimal("0.01"))
+
+                    new_item = ReservationItem(
+                        reservation_id=reservation.id,
+                        product_variant_id=variant.id,
+                        quantity=quantity,
+                        unit_price=unit_price,
+                        status="PENDING",
+                    )
+                    db.add(new_item)
+                    db.flush()
+                    existing_items[variant.id] = new_item
+                    item_id = new_item.id
+                    final_quantity = new_item.quantity
+
+                added_items.append(
+                    {
+                        "reservation_item_id": item_id,
+                        "product_variant_id": variant.id,
+                        "added_quantity": quantity,
+                        "final_quantity": final_quantity,
+                    }
+                )
+
+            if data.notes and data.notes.strip():
+                current_notes = (reservation.notes or "").strip()
+                extra_notes = data.notes.strip()
+                reservation.notes = (
+                    f"{current_notes}\n{extra_notes}"
+                    if current_notes
+                    else extra_notes
+                )
+
+            ReservationService._create_audit_log(
+                db,
+                user_id=current_user.id,
+                action="ADD_RESERVATION_ITEMS",
+                reservation=reservation,
+                description=(
+                    "Se agregaron productos a la reserva "
+                    f"{reservation.reservation_code}."
+                ),
+                new_values={
+                    "items": added_items,
+                    "expires_at": (
+                        reservation.expires_at.isoformat()
+                        if reservation.expires_at is not None
+                        else None
+                    ),
+                },
+            )
+
+            db.commit()
+
+        except Exception:
+            db.rollback()
+            raise
+
+        updated = ReservationService._get_reservation(db, reservation.id)
+        return ReservationService._serialize(updated)
 
 
     # =====================================================
@@ -1357,39 +1637,43 @@ class ReservationService:
         # EXPIRACIÓN
         # =================================================
 
-        expires_at = (
-            data.expires_at
+        # Regla de negocio:
+        # una solicitud PENDING todavía NO empieza a consumir
+        # el plazo de retiro. El expires_at se asigna recién
+        # cuando el encargado confirma la reserva.
+        expires_at = None
+
+
+        # =================================================
+        # UNA SOLA RESERVA PENDING POR CLIENTE + SUCURSAL
+        # =================================================
+
+        # Serializa creaciones concurrentes del mismo cliente para evitar
+        # dos reservas PENDING simultáneas en la misma sucursal.
+        (
+            db.query(User.id)
+            .filter(User.id == customer.id)
+            .with_for_update()
+            .one()
         )
 
+        existing_pending = (
+            db.query(Reservation)
+            .filter(
+                Reservation.customer_id == customer.id,
+                Reservation.branch_id == branch.id,
+                Reservation.status == "PENDING",
+            )
+            .order_by(Reservation.id.desc())
+            .first()
+        )
 
-        if expires_at is not None:
-
-            if (
-                expires_at.tzinfo
-                is None
-            ):
-
-                expires_at = (
-                    expires_at.replace(
-                        tzinfo=
-                            timezone.utc
-                    )
-                )
-
-
-            if (
-                expires_at
-                <=
-                datetime.now(
-                    timezone.utc
-                )
-            ):
-
-                raise ValueError(
-                    "expires_at debe ser "
-                    "una fecha futura."
-                )
-
+        if existing_pending is not None:
+            raise ValueError(
+                "Ya tienes una reserva PENDING en esta sucursal. "
+                f"Agrega los nuevos productos a la reserva "
+                f"{existing_pending.reservation_code}."
+            )
 
         # =================================================
         # AGRUPAR VARIANTES
@@ -2038,8 +2322,23 @@ class ReservationService:
 
         try:
 
+            confirmed_at = datetime.now(timezone.utc)
+
             reservation.status = (
                 "CONFIRMED"
+            )
+
+            # El plazo para recoger/pagar presencialmente empieza
+            # exactamente cuando la sucursal confirma la reserva.
+            reservation.expires_at = (
+                confirmed_at
+                + timedelta(hours=settings.reservation_ttl_hours)
+            )
+
+            NotificationService.notify_reservation_status(
+                db,
+                reservation=reservation,
+                status="CONFIRMED",
             )
 
 
@@ -2068,6 +2367,12 @@ class ReservationService:
                 new_values={
                     "status":
                         "CONFIRMED",
+
+                    "expires_at":
+                        reservation.expires_at.isoformat(),
+
+                    "reservation_ttl_hours":
+                        settings.reservation_ttl_hours,
                 },
             )
 
@@ -2091,6 +2396,31 @@ class ReservationService:
         )
 
 
+        # El correo es una notificación secundaria: si Brevo falla,
+        # la confirmación NO se revierte. La reserva ya quedó
+        # CONFIRMED y con su expires_at persistido.
+        customer_email = (updated.customer.email or "").strip()
+
+        if customer_email and "@" in customer_email:
+            try:
+                EmailService.send_reservation_confirmed(
+                    email=customer_email,
+                    first_name=updated.customer.first_name,
+                    reservation_code=updated.reservation_code,
+                    branch_name=updated.branch.name,
+                    branch_address=updated.branch.address,
+                    expires_at=updated.expires_at,
+                    ttl_hours=settings.reservation_ttl_hours,
+                )
+            except Exception:
+                logger.exception(
+                    "No se pudo enviar el correo de confirmación "
+                    "de la reserva %s al cliente %s.",
+                    updated.reservation_code,
+                    updated.customer_id,
+                )
+
+
         return (
             ReservationService
             ._serialize(
@@ -2110,7 +2440,7 @@ class ReservationService:
         *,
         reservation: Reservation,
 
-        current_user_id: int,
+        current_user_id: int | None,
 
         reason: str,
     ) -> None:
@@ -2415,6 +2745,14 @@ class ReservationService:
                 )
 
 
+            NotificationService.notify_reservation_status(
+                db,
+                reservation=reservation,
+                status="CANCELLED",
+                reason=reason.strip() if reason and reason.strip() else None,
+            )
+
+
             ReservationService._create_audit_log(
                 db,
 
@@ -2485,7 +2823,7 @@ class ReservationService:
         *,
         reservation_id: int,
 
-        system_user_id: int,
+        system_user_id: int | None = None,
     ) -> dict:
 
         reservation = (
@@ -2499,10 +2837,7 @@ class ReservationService:
 
         if (
             reservation.status
-            not in {
-                "PENDING",
-                "CONFIRMED",
-            }
+            not in ReservationService.EXPIRABLE_STATUSES
         ):
 
             raise ValueError(
@@ -2518,20 +2853,13 @@ class ReservationService:
         )
 
 
-        if (
-            reservation.expires_at
-            is None
-        ):
-
+        if reservation.expires_at is None:
             raise ValueError(
-                "La reserva no tiene fecha "
-                "de vencimiento."
+                "La reserva todavía no tiene fecha de vencimiento. "
+                "El plazo empieza cuando la reserva es confirmada."
             )
 
-
-        expires_at = (
-            reservation.expires_at
-        )
+        expires_at = reservation.expires_at
 
 
         if (
@@ -2582,6 +2910,12 @@ class ReservationService:
 
             reservation.status = (
                 "EXPIRED"
+            )
+
+            NotificationService.notify_reservation_status(
+                db,
+                reservation=reservation,
+                status="EXPIRED",
             )
 
 
@@ -2830,6 +3164,13 @@ class ReservationService:
                 )
 
 
+            NotificationService.notify_reservation_status(
+                db,
+                reservation=reservation,
+                status=new_status,
+            )
+
+
             # =============================================
             # AUDITORÍA
             # =============================================
@@ -2946,3 +3287,149 @@ class ReservationService:
             )
         )
 
+
+
+    # =====================================================
+    # ASISTENTE CLIENTE - ACTUALIZAR ÍTEM PENDING
+    # =====================================================
+
+    @staticmethod
+    def update_pending_item_quantity(
+        db: Session,
+        *,
+        reservation_id: int,
+        reservation_item_id: int,
+        quantity: int,
+        current_user: User,
+    ) -> dict:
+        if quantity <= 0:
+            raise ValueError("La cantidad debe ser mayor a cero.")
+
+        reservation = (
+            db.query(Reservation)
+            .filter(Reservation.id == reservation_id)
+            .with_for_update()
+            .first()
+        )
+        if reservation is None:
+            raise LookupError("La reserva no existe.")
+
+        ReservationService._validate_reservation_access(db, reservation, current_user)
+        if reservation.status != "PENDING":
+            raise ValueError("Solo puedes modificar productos de una reserva PENDING.")
+
+        item = (
+            db.query(ReservationItem)
+            .filter(
+                ReservationItem.id == reservation_item_id,
+                ReservationItem.reservation_id == reservation.id,
+            )
+            .with_for_update()
+            .first()
+        )
+        if item is None:
+            raise LookupError("El producto no pertenece a esta reserva.")
+        if item.status != "PENDING":
+            raise ValueError("Este producto de la reserva ya no admite cambios.")
+
+        inventory = (
+            db.query(Inventory)
+            .filter(
+                Inventory.branch_id == reservation.branch_id,
+                Inventory.product_variant_id == item.product_variant_id,
+                Inventory.is_active.is_(True),
+            )
+            .with_for_update()
+            .first()
+        )
+        if inventory is None:
+            raise LookupError("No existe inventario activo para esta variante en la sucursal.")
+
+        available = inventory.stock_quantity - inventory.reserved_quantity
+        if quantity > available:
+            raise ValueError(f"Solo hay {available} unidades disponibles para esta variante.")
+
+        old_quantity = item.quantity
+        try:
+            item.quantity = quantity
+            ReservationService._create_audit_log(
+                db,
+                user_id=current_user.id,
+                action="UPDATE_RESERVATION_ITEM_QUANTITY",
+                reservation=reservation,
+                description=f"Se actualizó la cantidad de un producto de {reservation.reservation_code}.",
+                old_values={"reservation_item_id": item.id, "quantity": old_quantity},
+                new_values={"reservation_item_id": item.id, "quantity": quantity},
+            )
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+
+        updated = ReservationService._get_reservation(db, reservation.id)
+        return ReservationService._serialize(updated)
+
+
+    # =====================================================
+    # ASISTENTE CLIENTE - QUITAR ÍTEM PENDING
+    # =====================================================
+
+    @staticmethod
+    def remove_pending_item(
+        db: Session,
+        *,
+        reservation_id: int,
+        reservation_item_id: int,
+        current_user: User,
+    ) -> dict:
+        reservation = (
+            db.query(Reservation)
+            .filter(Reservation.id == reservation_id)
+            .with_for_update()
+            .first()
+        )
+        if reservation is None:
+            raise LookupError("La reserva no existe.")
+
+        ReservationService._validate_reservation_access(db, reservation, current_user)
+        if reservation.status != "PENDING":
+            raise ValueError("Solo puedes quitar productos de una reserva PENDING.")
+
+        items = (
+            db.query(ReservationItem)
+            .filter(ReservationItem.reservation_id == reservation.id)
+            .all()
+        )
+        item = next((row for row in items if row.id == reservation_item_id), None)
+        if item is None:
+            raise LookupError("El producto no pertenece a esta reserva.")
+        if item.status != "PENDING":
+            raise ValueError("Este producto de la reserva ya no admite cambios.")
+        if len(items) <= 1:
+            raise ValueError(
+                "No puedes dejar una reserva sin productos. Cancela la reserva si ya no deseas conservarla."
+            )
+
+        try:
+            old_values = {
+                "reservation_item_id": item.id,
+                "product_variant_id": item.product_variant_id,
+                "quantity": item.quantity,
+            }
+            db.delete(item)
+            ReservationService._create_audit_log(
+                db,
+                user_id=current_user.id,
+                action="REMOVE_RESERVATION_ITEM",
+                reservation=reservation,
+                description=f"Se quitó un producto de la reserva {reservation.reservation_code}.",
+                old_values=old_values,
+                new_values=None,
+            )
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+
+        updated = ReservationService._get_reservation(db, reservation.id)
+        return ReservationService._serialize(updated)

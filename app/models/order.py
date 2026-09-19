@@ -24,15 +24,22 @@ class Order(Base):
             """
             status IN (
                 'PENDING_PAYMENT',
+                'PAYMENT_FAILED',
                 'PAID',
-                'PROCESSING',
-                'READY',
+                'PREPARING',
+                'READY_FOR_PICKUP',
+                'SHIPPED',
+                'DELIVERED',
                 'COMPLETED',
                 'CANCELLED',
-                'PAYMENT_FAILED'
+                'REFUNDED'
             )
             """,
             name="ck_order_status",
+        ),
+        CheckConstraint(
+            "delivery_type IN ('PICKUP', 'DELIVERY')",
+            name="ck_order_delivery_type",
         ),
         CheckConstraint(
             "subtotal >= 0",
@@ -99,6 +106,54 @@ class Order(Base):
         nullable=False,
         default=0,
         server_default="0",
+    )
+
+    delivery_type: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default="PICKUP",
+        server_default="PICKUP",
+    )
+
+    shipping_address: Mapped[str | None] = mapped_column(
+        String(500),
+        nullable=True,
+    )
+
+    tracking_code: Mapped[str | None] = mapped_column(
+        String(120),
+        nullable=True,
+        index=True,
+    )
+
+    paid_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    ready_for_pickup_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    shipped_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    delivered_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    cancelled_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
     )
 
     created_at: Mapped[datetime] = mapped_column(

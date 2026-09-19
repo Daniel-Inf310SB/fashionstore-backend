@@ -268,45 +268,13 @@ BRANCHES = [
 # ASIGNACIONES
 # =========================================================
 
+# Las asignaciones se generan desde la misma regla que seed_users:
+# 1 encargado por sucursal y 1-2 cajeros por sucursal.
+from app.database.seeds.seed_staffing import build_staff_plan
+
 EMPLOYEE_ASSIGNMENTS = [
-    # Cada encargado y sus dos cajeros comparten la misma sucursal.
-    # Esto garantiza que las ventas del cajero pertenezcan a la sucursal
-    # que supervisa el encargado.
-    {"email": "encargado.sc@fashionstore.com", "branch": "FashionStore Equipetrol"},
-    {"email": "cajero.sc1@fashionstore.com", "branch": "FashionStore Equipetrol"},
-    {"email": "cajero.sc2@fashionstore.com", "branch": "FashionStore Equipetrol"},
-
-    {"email": "encargado.lp@fashionstore.com", "branch": "FashionStore Sopocachi"},
-    {"email": "cajero.lp1@fashionstore.com", "branch": "FashionStore Sopocachi"},
-    {"email": "cajero.lp2@fashionstore.com", "branch": "FashionStore Sopocachi"},
-
-    {"email": "encargado.cbba@fashionstore.com", "branch": "FashionStore Cala Cala"},
-    {"email": "cajero.cbba1@fashionstore.com", "branch": "FashionStore Cala Cala"},
-    {"email": "cajero.cbba2@fashionstore.com", "branch": "FashionStore Cala Cala"},
-
-    {"email": "encargado.ch@fashionstore.com", "branch": "FashionStore Sucre Centro"},
-    {"email": "cajero.ch1@fashionstore.com", "branch": "FashionStore Sucre Centro"},
-    {"email": "cajero.ch2@fashionstore.com", "branch": "FashionStore Sucre Centro"},
-
-    {"email": "encargado.or@fashionstore.com", "branch": "FashionStore Oruro Centro"},
-    {"email": "cajero.or1@fashionstore.com", "branch": "FashionStore Oruro Centro"},
-    {"email": "cajero.or2@fashionstore.com", "branch": "FashionStore Oruro Centro"},
-
-    {"email": "encargado.pt@fashionstore.com", "branch": "FashionStore Potosí Centro"},
-    {"email": "cajero.pt1@fashionstore.com", "branch": "FashionStore Potosí Centro"},
-    {"email": "cajero.pt2@fashionstore.com", "branch": "FashionStore Potosí Centro"},
-
-    {"email": "encargado.tj@fashionstore.com", "branch": "FashionStore Tarija Centro"},
-    {"email": "cajero.tj1@fashionstore.com", "branch": "FashionStore Tarija Centro"},
-    {"email": "cajero.tj2@fashionstore.com", "branch": "FashionStore Tarija Centro"},
-
-    {"email": "encargado.be@fashionstore.com", "branch": "FashionStore Trinidad Centro"},
-    {"email": "cajero.be1@fashionstore.com", "branch": "FashionStore Trinidad Centro"},
-    {"email": "cajero.be2@fashionstore.com", "branch": "FashionStore Trinidad Centro"},
-
-    {"email": "encargado.pd@fashionstore.com", "branch": "FashionStore Cobija Centro"},
-    {"email": "cajero.pd1@fashionstore.com", "branch": "FashionStore Cobija Centro"},
-    {"email": "cajero.pd2@fashionstore.com", "branch": "FashionStore Cobija Centro"},
+    {"email": item["email"], "branch": item["branch"]}
+    for item in build_staff_plan(BRANCHES)
 ]
 
 

@@ -54,6 +54,10 @@ from app.models.size import (
     Size,
 )
 
+from app.services.customer_pricing import (
+    CustomerPricingService,
+)
+
 
 class CustomerProductDetailService:
 
@@ -128,6 +132,14 @@ class CustomerProductDetailService:
                 detail=
                     "La prenda no existe o no está disponible.",
             )
+
+
+        promotions_by_product = (
+            CustomerPricingService.get_active_promotions_by_product(
+                db,
+                [product.id],
+            )
+        )
 
 
         # =================================================
@@ -330,10 +342,21 @@ class CustomerProductDetailService:
             Decimal
         ] = []
 
+        original_variant_prices: list[
+            Decimal
+        ] = []
+
 
         total_available = 0
 
         available_variants = 0
+
+        applied_promotion = (
+            CustomerPricingService.choose_best_promotion(
+                promotions_by_product.get(product.id),
+                product.base_price,
+            )
+        )
 
 
         for variant in variants:
@@ -346,12 +369,21 @@ class CustomerProductDetailService:
             )
 
 
-            final_price = (
+            original_price = (
                 product.base_price
                 +
                 additional_price
             )
 
+            final_price = CustomerPricingService.apply_discount(
+                original_price,
+                applied_promotion,
+            )
+
+
+            original_variant_prices.append(
+                original_price
+            )
 
             variant_prices.append(
                 final_price
@@ -398,6 +430,9 @@ class CustomerProductDetailService:
                     "additional_price":
                         additional_price,
 
+                    "original_price":
+                        original_price,
+
                     "final_price":
                         final_price,
 
@@ -441,13 +476,19 @@ class CustomerProductDetailService:
 
         else:
 
-            min_price = (
-                product.base_price
+            min_price = CustomerPricingService.apply_discount(
+                product.base_price,
+                applied_promotion,
             )
 
-            max_price = (
-                product.base_price
-            )
+            max_price = min_price
+
+        if original_variant_prices:
+            original_min_price = min(original_variant_prices)
+            original_max_price = max(original_variant_prices)
+        else:
+            original_min_price = product.base_price
+            original_max_price = product.base_price
 
 
         # =================================================
@@ -479,6 +520,19 @@ class CustomerProductDetailService:
 
             "max_price":
                 max_price,
+
+            "original_min_price":
+                original_min_price,
+
+            "original_max_price":
+                original_max_price,
+
+            "has_discount":
+                applied_promotion is not None
+                and min_price < original_min_price,
+
+            "promotion":
+                CustomerPricingService.promotion_payload(applied_promotion),
 
             "cover_image_url":
                 product.cover_image_url,

@@ -23,6 +23,7 @@ from app.services.audit_log_service import (
 )
 
 
+from app.services.marketing_notification_service import MarketingNotificationService
 class PromotionService:
 
     # =====================================================
@@ -399,6 +400,11 @@ class PromotionService:
 
         db.flush()
 
+        MarketingNotificationService.schedule_promotion(
+            db,
+            promotion=promotion,
+        )
+
         AuditLogService.log(
             db=db,
 
@@ -649,6 +655,11 @@ class PromotionService:
 
         db.flush()
 
+        MarketingNotificationService.schedule_promotion(
+            db,
+            promotion=promotion,
+        )
+
         new_values = {
             "name":
                 promotion.name,
@@ -754,6 +765,12 @@ class PromotionService:
         promotion.is_active = False
 
         db.flush()
+
+        MarketingNotificationService.cancel_pending_for_entity(
+            db,
+            campaign_type="PROMOTION",
+            entity_id=promotion.id,
+        )
 
         AuditLogService.log(
             db=db,

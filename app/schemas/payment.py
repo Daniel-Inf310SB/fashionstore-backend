@@ -4,37 +4,14 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-
-PaymentMethod = Literal[
-    "CARD",
-    "QR",
-    "TRANSFER",
-]
-
+PaymentMethod = Literal["CARD", "QR", "TRANSFER"]
 PaymentStatus = Literal[
-    "PENDING",
-    "PROCESSING",
-    "APPROVED",
-    "REJECTED",
-    "FAILED",
-    "CANCELLED",
-    "REFUNDED",
+    "PENDING", "PROCESSING", "APPROVED", "REJECTED",
+    "FAILED", "CANCELLED", "REFUNDED",
 ]
+PaymentChannel = Literal["ONLINE", "CASH_DESK"]
+PaymentSourceType = Literal["ORDER", "SALE"]
 
-PaymentChannel = Literal[
-    "ONLINE",
-    "CASH_DESK",
-]
-
-PaymentSourceType = Literal[
-    "ORDER",
-    "SALE",
-]
-
-
-# =========================================================
-# RESPUESTAS AUXILIARES
-# =========================================================
 
 class PaymentCustomerResponse(BaseModel):
     id: int
@@ -43,7 +20,6 @@ class PaymentCustomerResponse(BaseModel):
     email: str
     phone: str | None = None
     document_number: str | None = None
-
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -53,7 +29,6 @@ class PaymentBranchResponse(BaseModel):
     address: str
     phone: str | None = None
     city_id: int
-
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -65,7 +40,6 @@ class PaymentOrderResponse(BaseModel):
     branch_id: int
     total_amount: Decimal
     created_at: datetime
-
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -78,41 +52,29 @@ class PaymentSaleResponse(BaseModel):
     customer_id: int | None = None
     total_amount: Decimal
     created_at: datetime
-
     model_config = ConfigDict(from_attributes=True)
 
-
-# =========================================================
-# CU38 / CU39 - PAGO ELECTRÓNICO
-# =========================================================
 
 class PaymentResponse(BaseModel):
     id: int
     payment_code: str
-
     order_id: int | None = None
     sale_id: int | None = None
     user_id: int | None = None
-
     source_type: PaymentSourceType
     source_code: str
-
     payment_method: PaymentMethod
     channel: PaymentChannel
     provider: str | None = None
-
     amount: Decimal
     currency: str
     status: PaymentStatus
-
     external_transaction_id: str | None = None
     external_reference: str | None = None
     failure_reason: str | None = None
     paid_at: datetime | None = None
-
     created_at: datetime
     updated_at: datetime
-
     customer: PaymentCustomerResponse | None = None
     branch: PaymentBranchResponse
     order: PaymentOrderResponse | None = None
@@ -126,10 +88,6 @@ class PaymentListResponse(BaseModel):
     total: int
     total_pages: int
 
-
-# =========================================================
-# CU39 - CONSULTAR ESTADO
-# =========================================================
 
 class PaymentStatusResponse(BaseModel):
     id: int
@@ -147,13 +105,27 @@ class PaymentStatusResponse(BaseModel):
     updated_at: datetime
 
 
-# =========================================================
-# CU38 - ACCIÓN ADMINISTRATIVA CONTROLADA
-# =========================================================
-
 class PaymentCancelRequest(BaseModel):
-    reason: str = Field(
-        ...,
-        min_length=3,
-        max_length=500,
-    )
+    reason: str = Field(..., min_length=3, max_length=500)
+
+
+class StripePaymentCreate(BaseModel):
+    order_id: int = Field(..., ge=1)
+
+
+class StripePaymentIntentResponse(BaseModel):
+    payment: PaymentResponse
+    client_secret: str
+    publishable_key: str
+
+
+class PaymentMethodResponse(BaseModel):
+    code: str
+    name: str
+    provider: str
+    enabled: bool
+    description: str | None = None
+
+
+class PaymentMethodsResponse(BaseModel):
+    items: list[PaymentMethodResponse]

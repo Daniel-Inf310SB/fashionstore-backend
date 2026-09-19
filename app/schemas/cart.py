@@ -118,13 +118,29 @@ class CartVariantResponse(BaseModel):
 # CU32 - ITEM DEL CARRITO
 # =========================================================
 
+class CartPromotionResponse(BaseModel):
+    id: int
+    name: str
+    discount_type: str
+    discount_value: Decimal
+
+    model_config = ConfigDict(
+        from_attributes=True,
+    )
+
+
 class CartItemResponse(BaseModel):
     id: int
     cart_id: int
     product_variant_id: int
     quantity: int
+    original_unit_price: Decimal
     unit_price: Decimal
+    discount_amount: Decimal
+    original_subtotal: Decimal
     subtotal: Decimal
+    has_discount: bool = False
+    promotion: CartPromotionResponse | None = None
     created_at: datetime
     updated_at: datetime
     product_variant: CartVariantResponse
@@ -148,6 +164,8 @@ class CartResponse(BaseModel):
     updated_at: datetime
     total_items: int
     total_units: int
+    original_total_amount: Decimal
+    discount_amount: Decimal
     total_amount: Decimal
     customer: CartCustomerResponse
     branch: CartBranchResponse | None = None

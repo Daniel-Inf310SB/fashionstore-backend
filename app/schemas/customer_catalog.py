@@ -44,6 +44,23 @@ class CustomerCatalogAudienceResponse(
 
 
 # =========================================================
+# PROMOCIÓN APLICADA
+# =========================================================
+
+class CustomerCatalogPromotionResponse(
+    BaseModel
+):
+    id: int
+    name: str
+    discount_type: str
+    discount_value: Decimal
+
+    model_config = ConfigDict(
+        from_attributes=True,
+    )
+
+
+# =========================================================
 # PRODUCTO DEL CATÁLOGO
 # =========================================================
 
@@ -65,6 +82,14 @@ class CustomerCatalogProductResponse(
     min_price: Decimal
 
     max_price: Decimal
+
+    original_min_price: Decimal
+
+    original_max_price: Decimal
+
+    has_discount: bool
+
+    promotion: CustomerCatalogPromotionResponse | None
 
     cover_image_url: str | None
 

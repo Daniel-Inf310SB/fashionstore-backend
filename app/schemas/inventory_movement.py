@@ -150,7 +150,7 @@ class InventoryMovementSupplierSummary(BaseModel):
 class InventoryMovementUserSummary(BaseModel):
     id: int
 
-    username: str
+    username: str | None = None
 
     first_name: str | None = None
 

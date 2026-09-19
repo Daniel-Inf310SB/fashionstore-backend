@@ -105,6 +105,23 @@ class CustomerProductImageResponse(
 
 
 # =========================================================
+# PROMOCIÓN APLICADA
+# =========================================================
+
+class CustomerProductPromotionResponse(
+    BaseModel
+):
+    id: int
+    name: str
+    discount_type: str
+    discount_value: Decimal
+
+    model_config = ConfigDict(
+        from_attributes=True,
+    )
+
+
+# =========================================================
 # VARIANTE
 # =========================================================
 
@@ -120,6 +137,8 @@ class CustomerProductVariantResponse(
     color_id: int
 
     additional_price: Decimal
+
+    original_price: Decimal
 
     final_price: Decimal
 
@@ -160,6 +179,14 @@ class CustomerProductDetailResponse(
     min_price: Decimal
 
     max_price: Decimal
+
+    original_min_price: Decimal
+
+    original_max_price: Decimal
+
+    has_discount: bool
+
+    promotion: CustomerProductPromotionResponse | None
 
     cover_image_url: str | None
 
