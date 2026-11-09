@@ -1,3 +1,4 @@
+from app.core.commercial_errors import commercial_error_headers
 from typing import Literal
 
 from fastapi import (
@@ -71,6 +72,7 @@ def handle_reservation_error(
                 str(
                     error
                 ),
+            headers=commercial_error_headers(error),
         ) from error
 
 
@@ -87,6 +89,7 @@ def handle_reservation_error(
                 str(
                     error
                 ),
+            headers=commercial_error_headers(error),
         ) from error
 
 
@@ -103,6 +106,7 @@ def handle_reservation_error(
                 str(
                     error
                 ),
+            headers=commercial_error_headers(error),
         ) from error
 
 
@@ -305,6 +309,7 @@ def create_my_reservation(
 
         create_data = ReservationCreate(
             customer_id=current_user.id,
+            client_operation_id=data.client_operation_id,
             branch_id=data.branch_id,
             notes=data.notes,
             items=data.items,

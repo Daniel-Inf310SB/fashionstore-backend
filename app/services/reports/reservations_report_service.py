@@ -30,11 +30,11 @@ class ReservationsReportService:
     ]
 
     @staticmethod
-    def build(db: Session, filters: ReservationsReportFilters) -> dict:
+    def build(db: Session, filters: ReservationsReportFilters, *, tenant_id: int) -> dict:
         customer_search = aliased(User)
 
         stmt = (
-            select(Reservation)
+            select(Reservation).where(Reservation.tenant_id == tenant_id)
             .options(
                 joinedload(Reservation.branch),
                 joinedload(Reservation.customer),

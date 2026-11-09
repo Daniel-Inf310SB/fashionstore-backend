@@ -1,0 +1,427 @@
+﻿tenant_slug,product_code,product_name,variant_sku
+fashionstore,FS-P0001,Camiseta básica 01,FS-P0001-S-NE
+fashionstore,FS-P0001,Camiseta básica 01,FS-P0001-M-BL
+fashionstore,FS-P0001,Camiseta básica 01,FS-P0001-L-AZ
+fashionstore,FS-P0002,Camiseta oversize 01,FS-P0002-S-BL
+fashionstore,FS-P0002,Camiseta oversize 01,FS-P0002-M-AZ
+fashionstore,FS-P0002,Camiseta oversize 01,FS-P0002-L-NE
+fashionstore,FS-P0003,Camiseta estampada 01,FS-P0003-S-AZ
+fashionstore,FS-P0003,Camiseta estampada 01,FS-P0003-M-NE
+fashionstore,FS-P0003,Camiseta estampada 01,FS-P0003-L-BL
+fashionstore,FS-P0004,Polo casual 01,FS-P0004-S-NE
+fashionstore,FS-P0004,Polo casual 01,FS-P0004-M-BL
+fashionstore,FS-P0004,Polo casual 01,FS-P0004-L-AZ
+fashionstore,FS-P0005,Blusa elegante 01,FS-P0005-S-BL
+fashionstore,FS-P0005,Blusa elegante 01,FS-P0005-M-AZ
+fashionstore,FS-P0005,Blusa elegante 01,FS-P0005-L-NE
+fashionstore,FS-P0006,Top deportivo 01,FS-P0006-S-AZ
+fashionstore,FS-P0006,Top deportivo 01,FS-P0006-M-NE
+fashionstore,FS-P0006,Top deportivo 01,FS-P0006-L-BL
+fashionstore,FS-P0007,Camisa Oxford 01,FS-P0007-S-NE
+fashionstore,FS-P0007,Camisa Oxford 01,FS-P0007-M-BL
+fashionstore,FS-P0007,Camisa Oxford 01,FS-P0007-L-AZ
+fashionstore,FS-P0008,Camisa de lino 01,FS-P0008-S-BL
+fashionstore,FS-P0008,Camisa de lino 01,FS-P0008-M-AZ
+fashionstore,FS-P0008,Camisa de lino 01,FS-P0008-L-NE
+fashionstore,FS-P0009,Jean recto 01,FS-P0009-S-AZ
+fashionstore,FS-P0009,Jean recto 01,FS-P0009-M-NE
+fashionstore,FS-P0009,Jean recto 01,FS-P0009-L-BL
+fashionstore,FS-P0010,Jean slim 01,FS-P0010-S-NE
+fashionstore,FS-P0010,Jean slim 01,FS-P0010-M-BL
+fashionstore,FS-P0010,Jean slim 01,FS-P0010-L-AZ
+fashionstore,FS-P0011,Pantalón chino 01,FS-P0011-S-BL
+fashionstore,FS-P0011,Pantalón chino 01,FS-P0011-M-AZ
+fashionstore,FS-P0011,Pantalón chino 01,FS-P0011-L-NE
+fashionstore,FS-P0012,Pantalón cargo 01,FS-P0012-S-AZ
+fashionstore,FS-P0012,Pantalón cargo 01,FS-P0012-M-NE
+fashionstore,FS-P0012,Pantalón cargo 01,FS-P0012-L-BL
+fashionstore,FS-P0013,Jogger cómodo 01,FS-P0013-S-NE
+fashionstore,FS-P0013,Jogger cómodo 01,FS-P0013-M-BL
+fashionstore,FS-P0013,Jogger cómodo 01,FS-P0013-L-AZ
+fashionstore,FS-P0014,Short casual 01,FS-P0014-S-BL
+fashionstore,FS-P0014,Short casual 01,FS-P0014-M-AZ
+fashionstore,FS-P0014,Short casual 01,FS-P0014-L-NE
+fashionstore,FS-P0015,Falda plisada 01,FS-P0015-S-AZ
+fashionstore,FS-P0015,Falda plisada 01,FS-P0015-M-NE
+fashionstore,FS-P0015,Falda plisada 01,FS-P0015-L-BL
+fashionstore,FS-P0016,Vestido midi 01,FS-P0016-S-NE
+fashionstore,FS-P0016,Vestido midi 01,FS-P0016-M-BL
+fashionstore,FS-P0016,Vestido midi 01,FS-P0016-L-AZ
+fashionstore,FS-P0017,Vestido corto 01,FS-P0017-S-BL
+fashionstore,FS-P0017,Vestido corto 01,FS-P0017-M-AZ
+fashionstore,FS-P0017,Vestido corto 01,FS-P0017-L-NE
+fashionstore,FS-P0018,Chaqueta denim 01,FS-P0018-S-AZ
+fashionstore,FS-P0018,Chaqueta denim 01,FS-P0018-M-NE
+fashionstore,FS-P0018,Chaqueta denim 01,FS-P0018-L-BL
+fashionstore,FS-P0019,Chaqueta bomber 01,FS-P0019-S-NE
+fashionstore,FS-P0019,Chaqueta bomber 01,FS-P0019-M-BL
+fashionstore,FS-P0019,Chaqueta bomber 01,FS-P0019-L-AZ
+fashionstore,FS-P0020,Sudadera con capucha 01,FS-P0020-S-BL
+fashionstore,FS-P0020,Sudadera con capucha 01,FS-P0020-M-AZ
+fashionstore,FS-P0020,Sudadera con capucha 01,FS-P0020-L-NE
+fashionstore,FS-P0021,Suéter tejido 01,FS-P0021-S-AZ
+fashionstore,FS-P0021,Suéter tejido 01,FS-P0021-M-NE
+fashionstore,FS-P0021,Suéter tejido 01,FS-P0021-L-BL
+fashionstore,FS-P0022,Abrigo ligero 01,FS-P0022-S-NE
+fashionstore,FS-P0022,Abrigo ligero 01,FS-P0022-M-BL
+fashionstore,FS-P0022,Abrigo ligero 01,FS-P0022-L-AZ
+fashionstore,FS-P0023,Zapatilla urbana 01,FS-P0023-S-BL
+fashionstore,FS-P0023,Zapatilla urbana 01,FS-P0023-M-AZ
+fashionstore,FS-P0023,Zapatilla urbana 01,FS-P0023-L-NE
+fashionstore,FS-P0024,Zapatilla running 01,FS-P0024-S-AZ
+fashionstore,FS-P0024,Zapatilla running 01,FS-P0024-M-NE
+fashionstore,FS-P0024,Zapatilla running 01,FS-P0024-L-BL
+fashionstore,FS-P0025,Sandalia casual 01,FS-P0025-S-NE
+fashionstore,FS-P0025,Sandalia casual 01,FS-P0025-M-BL
+fashionstore,FS-P0025,Sandalia casual 01,FS-P0025-L-AZ
+fashionstore,FS-P0026,Botín clásico 01,FS-P0026-S-BL
+fashionstore,FS-P0026,Botín clásico 01,FS-P0026-M-AZ
+fashionstore,FS-P0026,Botín clásico 01,FS-P0026-L-NE
+fashionstore,FS-P0027,Mochila urbana 01,FS-P0027-S-AZ
+fashionstore,FS-P0027,Mochila urbana 01,FS-P0027-M-NE
+fashionstore,FS-P0027,Mochila urbana 01,FS-P0027-L-BL
+fashionstore,FS-P0028,Gorra básica 01,FS-P0028-S-NE
+fashionstore,FS-P0028,Gorra básica 01,FS-P0028-M-BL
+fashionstore,FS-P0028,Gorra básica 01,FS-P0028-L-AZ
+fashionstore,FS-P0029,Conjunto deportivo 01,FS-P0029-S-BL
+fashionstore,FS-P0029,Conjunto deportivo 01,FS-P0029-M-AZ
+fashionstore,FS-P0029,Conjunto deportivo 01,FS-P0029-L-NE
+fashionstore,FS-P0030,Legging deportivo 01,FS-P0030-S-AZ
+fashionstore,FS-P0030,Legging deportivo 01,FS-P0030-M-NE
+fashionstore,FS-P0030,Legging deportivo 01,FS-P0030-L-BL
+fashionstore,FS-P0031,Camiseta básica 02,FS-P0031-S-NE
+fashionstore,FS-P0031,Camiseta básica 02,FS-P0031-M-BL
+fashionstore,FS-P0031,Camiseta básica 02,FS-P0031-L-AZ
+fashionstore,FS-P0032,Camiseta oversize 02,FS-P0032-S-BL
+fashionstore,FS-P0032,Camiseta oversize 02,FS-P0032-M-AZ
+fashionstore,FS-P0032,Camiseta oversize 02,FS-P0032-L-NE
+fashionstore,FS-P0033,Camiseta estampada 02,FS-P0033-S-AZ
+fashionstore,FS-P0033,Camiseta estampada 02,FS-P0033-M-NE
+fashionstore,FS-P0033,Camiseta estampada 02,FS-P0033-L-BL
+fashionstore,FS-P0034,Polo casual 02,FS-P0034-S-NE
+fashionstore,FS-P0034,Polo casual 02,FS-P0034-M-BL
+fashionstore,FS-P0034,Polo casual 02,FS-P0034-L-AZ
+fashionstore,FS-P0035,Blusa elegante 02,FS-P0035-S-BL
+fashionstore,FS-P0035,Blusa elegante 02,FS-P0035-M-AZ
+fashionstore,FS-P0035,Blusa elegante 02,FS-P0035-L-NE
+fashionstore,FS-P0036,Top deportivo 02,FS-P0036-S-AZ
+fashionstore,FS-P0036,Top deportivo 02,FS-P0036-M-NE
+fashionstore,FS-P0036,Top deportivo 02,FS-P0036-L-BL
+fashionstore,FS-P0037,Camisa Oxford 02,FS-P0037-S-NE
+fashionstore,FS-P0037,Camisa Oxford 02,FS-P0037-M-BL
+fashionstore,FS-P0037,Camisa Oxford 02,FS-P0037-L-AZ
+fashionstore,FS-P0038,Camisa de lino 02,FS-P0038-S-BL
+fashionstore,FS-P0038,Camisa de lino 02,FS-P0038-M-AZ
+fashionstore,FS-P0038,Camisa de lino 02,FS-P0038-L-NE
+fashionstore,FS-P0039,Jean recto 02,FS-P0039-S-AZ
+fashionstore,FS-P0039,Jean recto 02,FS-P0039-M-NE
+fashionstore,FS-P0039,Jean recto 02,FS-P0039-L-BL
+fashionstore,FS-P0040,Jean slim 02,FS-P0040-S-NE
+fashionstore,FS-P0040,Jean slim 02,FS-P0040-M-BL
+fashionstore,FS-P0040,Jean slim 02,FS-P0040-L-AZ
+fashionstore,FS-P0041,Pantalón chino 02,FS-P0041-S-BL
+fashionstore,FS-P0041,Pantalón chino 02,FS-P0041-M-AZ
+fashionstore,FS-P0041,Pantalón chino 02,FS-P0041-L-NE
+fashionstore,FS-P0042,Pantalón cargo 02,FS-P0042-S-AZ
+fashionstore,FS-P0042,Pantalón cargo 02,FS-P0042-M-NE
+fashionstore,FS-P0042,Pantalón cargo 02,FS-P0042-L-BL
+fashionstore,FS-P0043,Jogger cómodo 02,FS-P0043-S-NE
+fashionstore,FS-P0043,Jogger cómodo 02,FS-P0043-M-BL
+fashionstore,FS-P0043,Jogger cómodo 02,FS-P0043-L-AZ
+fashionstore,FS-P0044,Short casual 02,FS-P0044-S-BL
+fashionstore,FS-P0044,Short casual 02,FS-P0044-M-AZ
+fashionstore,FS-P0044,Short casual 02,FS-P0044-L-NE
+fashionstore,FS-P0045,Falda plisada 02,FS-P0045-S-AZ
+fashionstore,FS-P0045,Falda plisada 02,FS-P0045-M-NE
+fashionstore,FS-P0045,Falda plisada 02,FS-P0045-L-BL
+fashionstore,FS-P0046,Vestido midi 02,FS-P0046-S-NE
+fashionstore,FS-P0046,Vestido midi 02,FS-P0046-M-BL
+fashionstore,FS-P0046,Vestido midi 02,FS-P0046-L-AZ
+fashionstore,FS-P0047,Vestido corto 02,FS-P0047-S-BL
+fashionstore,FS-P0047,Vestido corto 02,FS-P0047-M-AZ
+fashionstore,FS-P0047,Vestido corto 02,FS-P0047-L-NE
+fashionstore,FS-P0048,Chaqueta denim 02,FS-P0048-S-AZ
+fashionstore,FS-P0048,Chaqueta denim 02,FS-P0048-M-NE
+fashionstore,FS-P0048,Chaqueta denim 02,FS-P0048-L-BL
+fashionstore,FS-P0049,Chaqueta bomber 02,FS-P0049-S-NE
+fashionstore,FS-P0049,Chaqueta bomber 02,FS-P0049-M-BL
+fashionstore,FS-P0049,Chaqueta bomber 02,FS-P0049-L-AZ
+fashionstore,FS-P0050,Sudadera con capucha 02,FS-P0050-S-BL
+fashionstore,FS-P0050,Sudadera con capucha 02,FS-P0050-M-AZ
+fashionstore,FS-P0050,Sudadera con capucha 02,FS-P0050-L-NE
+fashionstore,FS-P0051,Suéter tejido 02,FS-P0051-S-AZ
+fashionstore,FS-P0051,Suéter tejido 02,FS-P0051-M-NE
+fashionstore,FS-P0051,Suéter tejido 02,FS-P0051-L-BL
+fashionstore,FS-P0052,Abrigo ligero 02,FS-P0052-S-NE
+fashionstore,FS-P0052,Abrigo ligero 02,FS-P0052-M-BL
+fashionstore,FS-P0052,Abrigo ligero 02,FS-P0052-L-AZ
+fashionstore,FS-P0053,Zapatilla urbana 02,FS-P0053-S-BL
+fashionstore,FS-P0053,Zapatilla urbana 02,FS-P0053-M-AZ
+fashionstore,FS-P0053,Zapatilla urbana 02,FS-P0053-L-NE
+fashionstore,FS-P0054,Zapatilla running 02,FS-P0054-S-AZ
+fashionstore,FS-P0054,Zapatilla running 02,FS-P0054-M-NE
+fashionstore,FS-P0054,Zapatilla running 02,FS-P0054-L-BL
+fashionstore,FS-P0055,Sandalia casual 02,FS-P0055-S-NE
+fashionstore,FS-P0055,Sandalia casual 02,FS-P0055-M-BL
+fashionstore,FS-P0055,Sandalia casual 02,FS-P0055-L-AZ
+fashionstore,FS-P0056,Botín clásico 02,FS-P0056-S-BL
+fashionstore,FS-P0056,Botín clásico 02,FS-P0056-M-AZ
+fashionstore,FS-P0056,Botín clásico 02,FS-P0056-L-NE
+fashionstore,FS-P0057,Mochila urbana 02,FS-P0057-S-AZ
+fashionstore,FS-P0057,Mochila urbana 02,FS-P0057-M-NE
+fashionstore,FS-P0057,Mochila urbana 02,FS-P0057-L-BL
+fashionstore,FS-P0058,Gorra básica 02,FS-P0058-S-NE
+fashionstore,FS-P0058,Gorra básica 02,FS-P0058-M-BL
+fashionstore,FS-P0058,Gorra básica 02,FS-P0058-L-AZ
+fashionstore,FS-P0059,Conjunto deportivo 02,FS-P0059-S-BL
+fashionstore,FS-P0059,Conjunto deportivo 02,FS-P0059-M-AZ
+fashionstore,FS-P0059,Conjunto deportivo 02,FS-P0059-L-NE
+fashionstore,FS-P0060,Legging deportivo 02,FS-P0060-S-AZ
+fashionstore,FS-P0060,Legging deportivo 02,FS-P0060-M-NE
+fashionstore,FS-P0060,Legging deportivo 02,FS-P0060-L-BL
+fashionstore,FS-P0061,Camiseta básica 03,FS-P0061-S-NE
+fashionstore,FS-P0061,Camiseta básica 03,FS-P0061-M-BL
+fashionstore,FS-P0061,Camiseta básica 03,FS-P0061-L-AZ
+fashionstore,FS-P0062,Camiseta oversize 03,FS-P0062-S-BL
+fashionstore,FS-P0062,Camiseta oversize 03,FS-P0062-M-AZ
+fashionstore,FS-P0062,Camiseta oversize 03,FS-P0062-L-NE
+fashionstore,FS-P0063,Camiseta estampada 03,FS-P0063-S-AZ
+fashionstore,FS-P0063,Camiseta estampada 03,FS-P0063-M-NE
+fashionstore,FS-P0063,Camiseta estampada 03,FS-P0063-L-BL
+fashionstore,FS-P0064,Polo casual 03,FS-P0064-S-NE
+fashionstore,FS-P0064,Polo casual 03,FS-P0064-M-BL
+fashionstore,FS-P0064,Polo casual 03,FS-P0064-L-AZ
+fashionstore,FS-P0065,Blusa elegante 03,FS-P0065-S-BL
+fashionstore,FS-P0065,Blusa elegante 03,FS-P0065-M-AZ
+fashionstore,FS-P0065,Blusa elegante 03,FS-P0065-L-NE
+fashionstore,FS-P0066,Top deportivo 03,FS-P0066-S-AZ
+fashionstore,FS-P0066,Top deportivo 03,FS-P0066-M-NE
+fashionstore,FS-P0066,Top deportivo 03,FS-P0066-L-BL
+fashionstore,FS-P0067,Camisa Oxford 03,FS-P0067-S-NE
+fashionstore,FS-P0067,Camisa Oxford 03,FS-P0067-M-BL
+fashionstore,FS-P0067,Camisa Oxford 03,FS-P0067-L-AZ
+fashionstore,FS-P0068,Camisa de lino 03,FS-P0068-S-BL
+fashionstore,FS-P0068,Camisa de lino 03,FS-P0068-M-AZ
+fashionstore,FS-P0068,Camisa de lino 03,FS-P0068-L-NE
+fashionstore,FS-P0069,Jean recto 03,FS-P0069-S-AZ
+fashionstore,FS-P0069,Jean recto 03,FS-P0069-M-NE
+fashionstore,FS-P0069,Jean recto 03,FS-P0069-L-BL
+fashionstore,FS-P0070,Jean slim 03,FS-P0070-S-NE
+fashionstore,FS-P0070,Jean slim 03,FS-P0070-M-BL
+fashionstore,FS-P0070,Jean slim 03,FS-P0070-L-AZ
+fashionstore,FS-P0071,Pantalón chino 03,FS-P0071-S-BL
+fashionstore,FS-P0071,Pantalón chino 03,FS-P0071-M-AZ
+fashionstore,FS-P0071,Pantalón chino 03,FS-P0071-L-NE
+fashionstore,FS-P0072,Pantalón cargo 03,FS-P0072-S-AZ
+fashionstore,FS-P0072,Pantalón cargo 03,FS-P0072-M-NE
+fashionstore,FS-P0072,Pantalón cargo 03,FS-P0072-L-BL
+fashionstore,FS-P0073,Jogger cómodo 03,FS-P0073-S-NE
+fashionstore,FS-P0073,Jogger cómodo 03,FS-P0073-M-BL
+fashionstore,FS-P0073,Jogger cómodo 03,FS-P0073-L-AZ
+fashionstore,FS-P0074,Short casual 03,FS-P0074-S-BL
+fashionstore,FS-P0074,Short casual 03,FS-P0074-M-AZ
+fashionstore,FS-P0074,Short casual 03,FS-P0074-L-NE
+fashionstore,FS-P0075,Falda plisada 03,FS-P0075-S-AZ
+fashionstore,FS-P0075,Falda plisada 03,FS-P0075-M-NE
+fashionstore,FS-P0075,Falda plisada 03,FS-P0075-L-BL
+fashionstore,FS-P0076,Vestido midi 03,FS-P0076-S-NE
+fashionstore,FS-P0076,Vestido midi 03,FS-P0076-M-BL
+fashionstore,FS-P0076,Vestido midi 03,FS-P0076-L-AZ
+fashionstore,FS-P0077,Vestido corto 03,FS-P0077-S-BL
+fashionstore,FS-P0077,Vestido corto 03,FS-P0077-M-AZ
+fashionstore,FS-P0077,Vestido corto 03,FS-P0077-L-NE
+fashionstore,FS-P0078,Chaqueta denim 03,FS-P0078-S-AZ
+fashionstore,FS-P0078,Chaqueta denim 03,FS-P0078-M-NE
+fashionstore,FS-P0078,Chaqueta denim 03,FS-P0078-L-BL
+fashionstore,FS-P0079,Chaqueta bomber 03,FS-P0079-S-NE
+fashionstore,FS-P0079,Chaqueta bomber 03,FS-P0079-M-BL
+fashionstore,FS-P0079,Chaqueta bomber 03,FS-P0079-L-AZ
+fashionstore,FS-P0080,Sudadera con capucha 03,FS-P0080-S-BL
+fashionstore,FS-P0080,Sudadera con capucha 03,FS-P0080-M-AZ
+fashionstore,FS-P0080,Sudadera con capucha 03,FS-P0080-L-NE
+fashionstore,FS-P0081,Suéter tejido 03,FS-P0081-S-AZ
+fashionstore,FS-P0081,Suéter tejido 03,FS-P0081-M-NE
+fashionstore,FS-P0081,Suéter tejido 03,FS-P0081-L-BL
+fashionstore,FS-P0082,Abrigo ligero 03,FS-P0082-S-NE
+fashionstore,FS-P0082,Abrigo ligero 03,FS-P0082-M-BL
+fashionstore,FS-P0082,Abrigo ligero 03,FS-P0082-L-AZ
+fashionstore,FS-P0083,Zapatilla urbana 03,FS-P0083-S-BL
+fashionstore,FS-P0083,Zapatilla urbana 03,FS-P0083-M-AZ
+fashionstore,FS-P0083,Zapatilla urbana 03,FS-P0083-L-NE
+fashionstore,FS-P0084,Zapatilla running 03,FS-P0084-S-AZ
+fashionstore,FS-P0084,Zapatilla running 03,FS-P0084-M-NE
+fashionstore,FS-P0084,Zapatilla running 03,FS-P0084-L-BL
+fashionstore,FS-P0085,Sandalia casual 03,FS-P0085-S-NE
+fashionstore,FS-P0085,Sandalia casual 03,FS-P0085-M-BL
+fashionstore,FS-P0085,Sandalia casual 03,FS-P0085-L-AZ
+fashionstore,FS-P0086,Botín clásico 03,FS-P0086-S-BL
+fashionstore,FS-P0086,Botín clásico 03,FS-P0086-M-AZ
+fashionstore,FS-P0086,Botín clásico 03,FS-P0086-L-NE
+fashionstore,FS-P0087,Mochila urbana 03,FS-P0087-S-AZ
+fashionstore,FS-P0087,Mochila urbana 03,FS-P0087-M-NE
+fashionstore,FS-P0087,Mochila urbana 03,FS-P0087-L-BL
+fashionstore,FS-P0088,Gorra básica 03,FS-P0088-S-NE
+fashionstore,FS-P0088,Gorra básica 03,FS-P0088-M-BL
+fashionstore,FS-P0088,Gorra básica 03,FS-P0088-L-AZ
+fashionstore,FS-P0089,Conjunto deportivo 03,FS-P0089-S-BL
+fashionstore,FS-P0089,Conjunto deportivo 03,FS-P0089-M-AZ
+fashionstore,FS-P0089,Conjunto deportivo 03,FS-P0089-L-NE
+fashionstore,FS-P0090,Legging deportivo 03,FS-P0090-S-AZ
+fashionstore,FS-P0090,Legging deportivo 03,FS-P0090-M-NE
+fashionstore,FS-P0090,Legging deportivo 03,FS-P0090-L-BL
+fashionstore,FS-P0091,Camiseta básica 04,FS-P0091-S-NE
+fashionstore,FS-P0091,Camiseta básica 04,FS-P0091-M-BL
+fashionstore,FS-P0091,Camiseta básica 04,FS-P0091-L-AZ
+fashionstore,FS-P0092,Camiseta oversize 04,FS-P0092-S-BL
+fashionstore,FS-P0092,Camiseta oversize 04,FS-P0092-M-AZ
+fashionstore,FS-P0092,Camiseta oversize 04,FS-P0092-L-NE
+fashionstore,FS-P0093,Camiseta estampada 04,FS-P0093-S-AZ
+fashionstore,FS-P0093,Camiseta estampada 04,FS-P0093-M-NE
+fashionstore,FS-P0093,Camiseta estampada 04,FS-P0093-L-BL
+fashionstore,FS-P0094,Polo casual 04,FS-P0094-S-NE
+fashionstore,FS-P0094,Polo casual 04,FS-P0094-M-BL
+fashionstore,FS-P0094,Polo casual 04,FS-P0094-L-AZ
+fashionstore,FS-P0095,Blusa elegante 04,FS-P0095-S-BL
+fashionstore,FS-P0095,Blusa elegante 04,FS-P0095-M-AZ
+fashionstore,FS-P0095,Blusa elegante 04,FS-P0095-L-NE
+fashionstore,FS-P0096,Top deportivo 04,FS-P0096-S-AZ
+fashionstore,FS-P0096,Top deportivo 04,FS-P0096-M-NE
+fashionstore,FS-P0096,Top deportivo 04,FS-P0096-L-BL
+fashionstore,FS-P0097,Camisa Oxford 04,FS-P0097-S-NE
+fashionstore,FS-P0097,Camisa Oxford 04,FS-P0097-M-BL
+fashionstore,FS-P0097,Camisa Oxford 04,FS-P0097-L-AZ
+fashionstore,FS-P0098,Camisa de lino 04,FS-P0098-S-BL
+fashionstore,FS-P0098,Camisa de lino 04,FS-P0098-M-AZ
+fashionstore,FS-P0098,Camisa de lino 04,FS-P0098-L-NE
+fashionstore,FS-P0099,Jean recto 04,FS-P0099-S-AZ
+fashionstore,FS-P0099,Jean recto 04,FS-P0099-M-NE
+fashionstore,FS-P0099,Jean recto 04,FS-P0099-L-BL
+fashionstore,FS-P0100,Jean slim 04,FS-P0100-S-NE
+fashionstore,FS-P0100,Jean slim 04,FS-P0100-M-BL
+fashionstore,FS-P0100,Jean slim 04,FS-P0100-L-AZ
+fashionstore,FS-P0101,Pantalón chino 04,FS-P0101-S-BL
+fashionstore,FS-P0101,Pantalón chino 04,FS-P0101-M-AZ
+fashionstore,FS-P0101,Pantalón chino 04,FS-P0101-L-NE
+fashionstore,FS-P0102,Pantalón cargo 04,FS-P0102-S-AZ
+fashionstore,FS-P0102,Pantalón cargo 04,FS-P0102-M-NE
+fashionstore,FS-P0102,Pantalón cargo 04,FS-P0102-L-BL
+fashionstore,FS-P0103,Jogger cómodo 04,FS-P0103-S-NE
+fashionstore,FS-P0103,Jogger cómodo 04,FS-P0103-M-BL
+fashionstore,FS-P0103,Jogger cómodo 04,FS-P0103-L-AZ
+fashionstore,FS-P0104,Short casual 04,FS-P0104-S-BL
+fashionstore,FS-P0104,Short casual 04,FS-P0104-M-AZ
+fashionstore,FS-P0104,Short casual 04,FS-P0104-L-NE
+fashionstore,FS-P0105,Falda plisada 04,FS-P0105-S-AZ
+fashionstore,FS-P0105,Falda plisada 04,FS-P0105-M-NE
+fashionstore,FS-P0105,Falda plisada 04,FS-P0105-L-BL
+fashionstore,FS-P0106,Vestido midi 04,FS-P0106-S-NE
+fashionstore,FS-P0106,Vestido midi 04,FS-P0106-M-BL
+fashionstore,FS-P0106,Vestido midi 04,FS-P0106-L-AZ
+fashionstore,FS-P0107,Vestido corto 04,FS-P0107-S-BL
+fashionstore,FS-P0107,Vestido corto 04,FS-P0107-M-AZ
+fashionstore,FS-P0107,Vestido corto 04,FS-P0107-L-NE
+fashionstore,FS-P0108,Chaqueta denim 04,FS-P0108-S-AZ
+fashionstore,FS-P0108,Chaqueta denim 04,FS-P0108-M-NE
+fashionstore,FS-P0108,Chaqueta denim 04,FS-P0108-L-BL
+fashionstore,FS-P0109,Chaqueta bomber 04,FS-P0109-S-NE
+fashionstore,FS-P0109,Chaqueta bomber 04,FS-P0109-M-BL
+fashionstore,FS-P0109,Chaqueta bomber 04,FS-P0109-L-AZ
+fashionstore,FS-P0110,Sudadera con capucha 04,FS-P0110-S-BL
+fashionstore,FS-P0110,Sudadera con capucha 04,FS-P0110-M-AZ
+fashionstore,FS-P0110,Sudadera con capucha 04,FS-P0110-L-NE
+fashionstore,FS-P0111,Suéter tejido 04,FS-P0111-S-AZ
+fashionstore,FS-P0111,Suéter tejido 04,FS-P0111-M-NE
+fashionstore,FS-P0111,Suéter tejido 04,FS-P0111-L-BL
+fashionstore,FS-P0112,Abrigo ligero 04,FS-P0112-S-NE
+fashionstore,FS-P0112,Abrigo ligero 04,FS-P0112-M-BL
+fashionstore,FS-P0112,Abrigo ligero 04,FS-P0112-L-AZ
+fashionstore,FS-P0113,Zapatilla urbana 04,FS-P0113-S-BL
+fashionstore,FS-P0113,Zapatilla urbana 04,FS-P0113-M-AZ
+fashionstore,FS-P0113,Zapatilla urbana 04,FS-P0113-L-NE
+fashionstore,FS-P0114,Zapatilla running 04,FS-P0114-S-AZ
+fashionstore,FS-P0114,Zapatilla running 04,FS-P0114-M-NE
+fashionstore,FS-P0114,Zapatilla running 04,FS-P0114-L-BL
+fashionstore,FS-P0115,Sandalia casual 04,FS-P0115-S-NE
+fashionstore,FS-P0115,Sandalia casual 04,FS-P0115-M-BL
+fashionstore,FS-P0115,Sandalia casual 04,FS-P0115-L-AZ
+fashionstore,FS-P0116,Botín clásico 04,FS-P0116-S-BL
+fashionstore,FS-P0116,Botín clásico 04,FS-P0116-M-AZ
+fashionstore,FS-P0116,Botín clásico 04,FS-P0116-L-NE
+fashionstore,FS-P0117,Mochila urbana 04,FS-P0117-S-AZ
+fashionstore,FS-P0117,Mochila urbana 04,FS-P0117-M-NE
+fashionstore,FS-P0117,Mochila urbana 04,FS-P0117-L-BL
+fashionstore,FS-P0118,Gorra básica 04,FS-P0118-S-NE
+fashionstore,FS-P0118,Gorra básica 04,FS-P0118-M-BL
+fashionstore,FS-P0118,Gorra básica 04,FS-P0118-L-AZ
+fashionstore,FS-P0119,Conjunto deportivo 04,FS-P0119-S-BL
+fashionstore,FS-P0119,Conjunto deportivo 04,FS-P0119-M-AZ
+fashionstore,FS-P0119,Conjunto deportivo 04,FS-P0119-L-NE
+fashionstore,FS-P0120,Legging deportivo 04,FS-P0120-S-AZ
+fashionstore,FS-P0120,Legging deportivo 04,FS-P0120-M-NE
+fashionstore,FS-P0120,Legging deportivo 04,FS-P0120-L-BL
+urban-style-demo,US-P0001,Camiseta básica 01,US-P0001-S-NE
+urban-style-demo,US-P0001,Camiseta básica 01,US-P0001-M-BL
+urban-style-demo,US-P0001,Camiseta básica 01,US-P0001-L-AZ
+urban-style-demo,US-P0002,Camiseta oversize 01,US-P0002-S-BL
+urban-style-demo,US-P0002,Camiseta oversize 01,US-P0002-M-AZ
+urban-style-demo,US-P0002,Camiseta oversize 01,US-P0002-L-NE
+urban-style-demo,US-P0003,Camiseta estampada 01,US-P0003-S-AZ
+urban-style-demo,US-P0003,Camiseta estampada 01,US-P0003-M-NE
+urban-style-demo,US-P0003,Camiseta estampada 01,US-P0003-L-BL
+urban-style-demo,US-P0004,Polo casual 01,US-P0004-S-NE
+urban-style-demo,US-P0004,Polo casual 01,US-P0004-M-BL
+urban-style-demo,US-P0004,Polo casual 01,US-P0004-L-AZ
+urban-style-demo,US-P0005,Blusa elegante 01,US-P0005-S-BL
+urban-style-demo,US-P0005,Blusa elegante 01,US-P0005-M-AZ
+urban-style-demo,US-P0005,Blusa elegante 01,US-P0005-L-NE
+urban-style-demo,US-P0006,Top deportivo 01,US-P0006-S-AZ
+urban-style-demo,US-P0006,Top deportivo 01,US-P0006-M-NE
+urban-style-demo,US-P0006,Top deportivo 01,US-P0006-L-BL
+urban-style-demo,US-P0007,Camisa Oxford 01,US-P0007-S-NE
+urban-style-demo,US-P0007,Camisa Oxford 01,US-P0007-M-BL
+urban-style-demo,US-P0007,Camisa Oxford 01,US-P0007-L-AZ
+urban-style-demo,US-P0008,Camisa de lino 01,US-P0008-S-BL
+urban-style-demo,US-P0008,Camisa de lino 01,US-P0008-M-AZ
+urban-style-demo,US-P0008,Camisa de lino 01,US-P0008-L-NE
+urban-style-demo,US-P0009,Jean recto 01,US-P0009-S-AZ
+urban-style-demo,US-P0009,Jean recto 01,US-P0009-M-NE
+urban-style-demo,US-P0009,Jean recto 01,US-P0009-L-BL
+urban-style-demo,US-P0010,Jean slim 01,US-P0010-S-NE
+urban-style-demo,US-P0010,Jean slim 01,US-P0010-M-BL
+urban-style-demo,US-P0010,Jean slim 01,US-P0010-L-AZ
+urban-style-demo,US-P0011,Pantalón chino 01,US-P0011-S-BL
+urban-style-demo,US-P0011,Pantalón chino 01,US-P0011-M-AZ
+urban-style-demo,US-P0011,Pantalón chino 01,US-P0011-L-NE
+urban-style-demo,US-P0012,Pantalón cargo 01,US-P0012-S-AZ
+urban-style-demo,US-P0012,Pantalón cargo 01,US-P0012-M-NE
+urban-style-demo,US-P0012,Pantalón cargo 01,US-P0012-L-BL
+technova-store,TN-DEMO-001,Camiseta básica TechNova,TN-DEMO-001-S-NE
+technova-store,TN-DEMO-001,Camiseta básica TechNova,TN-DEMO-001-M-BL
+technova-store,TN-DEMO-001,Camiseta básica TechNova,TN-DEMO-001-L-AZ
+technova-store,TN-DEMO-002,Polo algodón clásico,TN-DEMO-002-S-NE
+technova-store,TN-DEMO-002,Polo algodón clásico,TN-DEMO-002-M-BL
+technova-store,TN-DEMO-002,Polo algodón clásico,TN-DEMO-002-L-AZ
+technova-store,TN-DEMO-003,Camisa de lino casual,TN-DEMO-003-S-NE
+technova-store,TN-DEMO-003,Camisa de lino casual,TN-DEMO-003-M-BL
+technova-store,TN-DEMO-003,Camisa de lino casual,TN-DEMO-003-L-AZ
+technova-store,TN-DEMO-004,Blusa cuello redondo,TN-DEMO-004-S-NE
+technova-store,TN-DEMO-004,Blusa cuello redondo,TN-DEMO-004-M-BL
+technova-store,TN-DEMO-004,Blusa cuello redondo,TN-DEMO-004-L-AZ
+technova-store,TN-DEMO-005,Pantalón chino,TN-DEMO-005-S-NE
+technova-store,TN-DEMO-005,Pantalón chino,TN-DEMO-005-M-BL
+technova-store,TN-DEMO-005,Pantalón chino,TN-DEMO-005-L-AZ
+technova-store,TN-DEMO-006,Jean corte recto,TN-DEMO-006-S-NE
+technova-store,TN-DEMO-006,Jean corte recto,TN-DEMO-006-M-BL
+technova-store,TN-DEMO-006,Jean corte recto,TN-DEMO-006-L-AZ
+technova-store,TN-DEMO-007,Vestido casual,TN-DEMO-007-S-NE
+technova-store,TN-DEMO-007,Vestido casual,TN-DEMO-007-M-BL
+technova-store,TN-DEMO-007,Vestido casual,TN-DEMO-007-L-AZ
+technova-store,TN-DEMO-008,Chaqueta ligera,TN-DEMO-008-S-NE
+technova-store,TN-DEMO-008,Chaqueta ligera,TN-DEMO-008-M-BL
+technova-store,TN-DEMO-008,Chaqueta ligera,TN-DEMO-008-L-AZ
+technova-store,TN-DEMO-009,Sudadera deportiva,TN-DEMO-009-S-NE
+technova-store,TN-DEMO-009,Sudadera deportiva,TN-DEMO-009-M-BL
+technova-store,TN-DEMO-009,Sudadera deportiva,TN-DEMO-009-L-AZ
+technova-store,TN-DEMO-010,Abrigo urbano,TN-DEMO-010-S-NE
+technova-store,TN-DEMO-010,Abrigo urbano,TN-DEMO-010-M-BL
+technova-store,TN-DEMO-010,Abrigo urbano,TN-DEMO-010-L-AZ

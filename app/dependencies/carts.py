@@ -47,6 +47,7 @@ def require_carts_manage(
 ) -> User:
     if _role_name(current_user) not in {
         "ADMINISTRADOR",
+        "TENANT_ADMIN",
         "SUPERADMIN",
     }:
         raise HTTPException(

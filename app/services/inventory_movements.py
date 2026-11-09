@@ -60,6 +60,7 @@ class InventoryMovementService:
     ADMIN_ROLES = {
         "ADMINISTRADOR",
         "SUPERADMIN",
+        "TENANT_ADMIN",
     }
 
     MANAGER_ROLE = (
@@ -109,6 +110,12 @@ class InventoryMovementService:
         )
 
         if role in InventoryMovementService.ADMIN_ROLES:
+            if current_user.tenant_id is None:
+                raise PermissionError("Se requiere una empresa activa.")
+            if requested_branch_id is not None:
+                branch = db.get(Branch, requested_branch_id)
+                if branch is None or branch.tenant_id != current_user.tenant_id:
+                    raise LookupError("Sucursal no encontrada en tu empresa.")
             return requested_branch_id
 
         if role == InventoryMovementService.MANAGER_ROLE:
@@ -128,6 +135,8 @@ class InventoryMovementService:
                     "movimientos de otra sucursal."
                 )
 
+            if current_user.tenant_id is None or branch.tenant_id != current_user.tenant_id:
+                raise PermissionError("La sucursal no pertenece a tu empresa.")
             return branch.id
 
         raise PermissionError(
@@ -142,7 +151,11 @@ class InventoryMovementService:
     @staticmethod
     def _base_query(
         db: Session,
+        current_user: User | None = None,
     ):
+
+        if current_user is None or current_user.tenant_id is None:
+            raise PermissionError("Se requiere un usuario empresarial.")
 
         return (
             db.query(
@@ -171,6 +184,10 @@ class InventoryMovementService:
                 ProductVariant.product_id
                 ==
                 Product.id,
+            )
+            .filter(
+                Branch.tenant_id == current_user.tenant_id,
+                Product.tenant_id == current_user.tenant_id,
             )
             .options(
                 joinedload(
@@ -281,7 +298,7 @@ class InventoryMovementService:
         query = (
             InventoryMovementService
             ._base_query(
-                db
+                db, current_user=current_user
             )
         )
 
@@ -494,7 +511,7 @@ class InventoryMovementService:
         movement = (
             InventoryMovementService
             ._base_query(
-                db
+                db, current_user=current_user
             )
             .filter(
                 InventoryMovement.id
@@ -1004,6 +1021,17 @@ class InventoryMovementService:
                 requested_branch_id=inventory.branch_id,
             )
 
+
+            related_branch = db.get(Branch, inventory.branch_id)
+            related_variant = db.get(ProductVariant, inventory.product_variant_id)
+            if (
+                current_user.tenant_id is None
+                or related_branch is None
+                or related_variant is None
+                or related_branch.tenant_id != current_user.tenant_id
+                or related_variant.product.tenant_id != current_user.tenant_id
+            ):
+                raise LookupError("Inventario no encontrado en tu empresa.")
 
             role = (
                 InventoryMovementService

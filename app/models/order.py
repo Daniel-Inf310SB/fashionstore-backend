@@ -55,6 +55,15 @@ class Order(Base):
         ),
     )
 
+    tenant = relationship("Tenant")
+
+    # Empresa propietaria del registro.
+    tenant_id: Mapped[int | None] = mapped_column(
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+    )
+
     id: Mapped[int] = mapped_column(
         primary_key=True,
         index=True,

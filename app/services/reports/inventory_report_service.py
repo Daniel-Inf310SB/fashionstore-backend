@@ -3,6 +3,7 @@ from __future__ import annotations
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, joinedload
 
+from app.models.branch import Branch
 from app.models.inventory import Inventory
 from app.models.product import Product
 from app.models.product_variant import ProductVariant
@@ -36,11 +37,13 @@ class InventoryReportService:
         return "IN_STOCK"
 
     @staticmethod
-    def build(db: Session, filters: InventoryReportFilters) -> dict:
+    def build(db: Session, filters: InventoryReportFilters, *, tenant_id: int) -> dict:
         stmt = (
             select(Inventory)
             .join(ProductVariant, ProductVariant.id == Inventory.product_variant_id)
             .join(Product, Product.id == ProductVariant.product_id)
+            .join(Branch, Branch.id == Inventory.branch_id)
+            .where(Branch.tenant_id == tenant_id, Product.tenant_id == tenant_id)
             .options(
                 joinedload(Inventory.branch),
                 joinedload(Inventory.product_variant).joinedload(ProductVariant.size),

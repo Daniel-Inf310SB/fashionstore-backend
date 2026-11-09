@@ -61,12 +61,12 @@ class DashboardService:
 
         active_branches = (
             db.query(Branch)
-            .filter(Branch.is_active.is_(True))
+            .filter(Branch.is_active.is_(True), Branch.tenant_id == user.tenant_id)
             .order_by(Branch.name.asc())
             .all()
         )
 
-        if role == "ADMINISTRADOR":
+        if role in {"ADMINISTRADOR", "TENANT_ADMIN"}:
             if requested_branch_id is not None:
                 selected = next((b for b in active_branches if b.id == requested_branch_id), None)
                 if selected is None:
@@ -90,6 +90,7 @@ class DashboardService:
                     EmployeeBranch.user_id == user.id,
                     EmployeeBranch.is_active.is_(True),
                     Branch.is_active.is_(True),
+                    Branch.tenant_id == user.tenant_id,
                 )
                 .first()
             )
@@ -112,7 +113,7 @@ class DashboardService:
     @staticmethod
     def _aggregate_revenue(db: Session, branch_ids: list[int], start: datetime, end: datetime):
         if not branch_ids:
-            return Decimal("0.00"), 0, 0, 0
+            return Decimal("0.00"), 0, 0, 0, Decimal("0.00"), Decimal("0.00")
 
         pos = (
             db.query(

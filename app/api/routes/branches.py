@@ -1,3 +1,5 @@
+from app.dependencies.resource_tenant import require_owned_record
+from app.models.branch import Branch
 from typing import Literal
 
 from fastapi import (
@@ -102,6 +104,7 @@ def get_branches(
         is_active=is_active,
         sort_by=sort_by,
         sort_order=sort_order,
+        tenant_id=current_user.tenant_id,
     )
 
 
@@ -130,6 +133,7 @@ def create_branch(
             db=db,
             payload=payload,
             user_id=current_user.id,
+            tenant_id=current_user.tenant_id,
             ip_address=(
                 request.client.host
                 if request.client
@@ -171,10 +175,9 @@ def get_my_branch(
 ):
 
     try:
-        return BranchService.get_my_branch(
-            db=db,
-            user_id=current_user.id,
-        )
+        branch = BranchService.get_my_branch(db=db, user_id=current_user.id)
+        require_owned_record(db, current_user, Branch, branch.id)
+        return branch
 
     except LookupError as exc:
         raise HTTPException(
@@ -206,6 +209,8 @@ def get_branch(
         require_branches_manage
     ),
 ):
+
+    require_owned_record(db, current_user, Branch, branch_id)
 
     try:
         return BranchService.get_branch(
@@ -239,6 +244,8 @@ def update_branch(
         require_branches_manage
     ),
 ):
+
+    require_owned_record(db, current_user, Branch, branch_id)
 
     try:
         return BranchService.update_branch(
@@ -287,6 +294,8 @@ def deactivate_branch(
         require_branches_manage
     ),
 ):
+
+    require_owned_record(db, current_user, Branch, branch_id)
 
     try:
         return BranchService.deactivate_branch(

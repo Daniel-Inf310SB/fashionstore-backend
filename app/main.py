@@ -6,10 +6,6 @@ from fastapi.middleware.cors import (
     CORSMiddleware,
 )
 
-from apscheduler.schedulers.background import (
-    BackgroundScheduler,
-)
-
 import app.models
 
 from app.core.config import (
@@ -20,15 +16,6 @@ from app.core.cloudinary_config import (
     configure_cloudinary,
 )
 
-from app.jobs.expiration_jobs import (
-    run_expiration_jobs,
-)
-
-from app.jobs.notification_jobs import (
-    run_marketing_notification_jobs,
-    run_push_delivery_jobs,
-)
-
 from app.services.firebase_service import (
     FirebaseService,
 )
@@ -37,6 +24,9 @@ from app.services.firebase_service import (
 # =========================================================
 # MÓDULO 1 - AUTENTICACIÓN, USUARIOS Y PERMISOS
 # =========================================================
+
+from app.api.routes.platform_tenants import router as platform_tenants_router
+from app.api.routes.platform_subscriptions import router as platform_subscriptions_router
 
 from app.api.routes.auth import (
     router as auth_router,
@@ -251,6 +241,8 @@ from app.api.routes.payments import (
 # MÓDULO 12 - REPORTES
 # =========================================================
 
+from app.api.routes.ml_analytics import router as ml_analytics_router
+
 from app.api.routes.reports import (
     router as reports_router,
 )
@@ -314,103 +306,42 @@ def initialize_firebase():
 
     FirebaseService.initialize()
 
-
 # =========================================================
-# SCHEDULER - EXPIRACIÓN AUTOMÁTICA
-# =========================================================
-
-expiration_scheduler = BackgroundScheduler(
-    timezone="UTC",
-)
-
-
-@app.on_event("startup")
-def start_background_scheduler():
-
-    if settings.expiration_scheduler_enabled:
-        expiration_scheduler.add_job(
-            run_expiration_jobs,
-            trigger="interval",
-            minutes=settings.expiration_check_minutes,
-            id="fashionstore-expiration",
-            replace_existing=True,
-            max_instances=1,
-            coalesce=True,
-        )
-
-    if settings.push_jobs_enabled:
-        expiration_scheduler.add_job(
-            run_push_delivery_jobs,
-            trigger="interval",
-            seconds=settings.push_job_interval_seconds,
-            id="fashionstore-push-delivery",
-            replace_existing=True,
-            max_instances=1,
-            coalesce=True,
-        )
-
-    if settings.marketing_notification_jobs_enabled:
-        expiration_scheduler.add_job(
-            run_marketing_notification_jobs,
-            trigger="interval",
-            seconds=settings.marketing_campaign_job_interval_seconds,
-            id="fashionstore-marketing-notifications",
-            replace_existing=True,
-            max_instances=1,
-            coalesce=True,
-        )
-
-    has_enabled_jobs = any(
-        (
-            settings.expiration_scheduler_enabled,
-            settings.push_jobs_enabled,
-            settings.marketing_notification_jobs_enabled,
-        )
-    )
-
-    if (
-        has_enabled_jobs
-        and not expiration_scheduler.running
-    ):
-        expiration_scheduler.start()
-
-
-@app.on_event("shutdown")
-def stop_expiration_scheduler():
-
-    if expiration_scheduler.running:
-        expiration_scheduler.shutdown(
-            wait=False,
-        )
-
-
-# =========================================================
-# CORS
+# CORS - FASHIONSTORE
 # =========================================================
 
 app.add_middleware(
     CORSMiddleware,
-
     allow_origins=[
+        # Desarrollo local
         "http://localhost:4200",
-    ],
+        "http://127.0.0.1:4200",
+        "http://localhost:4201",
+        "http://127.0.0.1:4201",
+        "http://localhost:4300",
+        "http://127.0.0.1:4300",
 
-    allow_credentials=
-        True,
+        # Servidor temporal
+        "http://139.59.187.80",
 
-    allow_methods=[
-        "*",
+        # Dominio de producción
+        "https://vialassist.lat",
+        "https://www.vialassist.lat",
     ],
-
-    allow_headers=[
-        "*",
-    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
 # =========================================================
 # MÓDULO 1 - AUTENTICACIÓN, USUARIOS Y PERMISOS
 # =========================================================
+
+from app.api.routes.returns import router as returns_router
+app.include_router(returns_router)
+app.include_router(platform_tenants_router)
+app.include_router(platform_subscriptions_router)
 
 app.include_router(
     auth_router
@@ -654,6 +585,8 @@ app.include_router(
     reports_router
 )
 
+app.include_router(ml_analytics_router)
+
 
 # =========================================================
 # DASHBOARD ADMINISTRATIVO
@@ -705,3 +638,34 @@ def health():
         "status":
             "ok"
     }
+
+# Directorio SaaS público. Se registra después de los routers existentes.
+from app.api.routes.storefront_tenants import router as storefront_tenants_router
+app.include_router(storefront_tenants_router)
+
+
+# Devoluciones de compras digitales - fase 1
+
+
+# Reembolsos fase 2 (solo Stripe test, nunca inventario)
+from app.api.routes.return_refunds import router as return_refunds_router
+app.include_router(return_refunds_router)
+
+# Inspección y reposición de devoluciones - Fase 2B
+from app.api.routes.return_inspections import router as return_inspections_router
+app.include_router(return_inspections_router)
+
+# Home comercial y campañas configurables
+from app.api.routes.store_home import router as store_home_router
+from app.api.routes.home_banners import router as home_banners_router
+app.include_router(store_home_router)
+app.include_router(home_banners_router)
+
+# Devoluciones de ventas presenciales (separadas de compras online)
+from app.api.routes.sale_returns import router as sale_returns_router
+app.include_router(sale_returns_router)
+
+
+# Unified post-sale workflow for online orders and POS sales
+from app.api.routes.post_sale import router as post_sale_router
+app.include_router(post_sale_router)

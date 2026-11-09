@@ -78,14 +78,18 @@ class EmployeeBranchService:
     def get_assignment(
         db: Session,
         assignment_id: int,
+        tenant_id: int,
     ) -> EmployeeBranch:
 
         assignment = (
             EmployeeBranchService
             ._base_query(db)
+            .join(Branch, EmployeeBranch.branch_id == Branch.id)
+            .join(User, EmployeeBranch.user_id == User.id)
             .filter(
-                EmployeeBranch.id
-                == assignment_id
+                EmployeeBranch.id == assignment_id,
+                Branch.tenant_id == tenant_id,
+                User.tenant_id == tenant_id,
             )
             .first()
         )
@@ -110,6 +114,7 @@ class EmployeeBranchService:
         branch_id: int | None = None,
         role_id: int | None = None,
         is_active: bool | None = True,
+        tenant_id: int = 0,
     ) -> dict:
 
         page = max(
@@ -144,6 +149,8 @@ class EmployeeBranchService:
                 == Branch.id,
             )
             .filter(
+                Branch.tenant_id == tenant_id,
+                User.tenant_id == tenant_id,
                 Role.name.in_(
                     EmployeeBranchService
                     .EMPLOYEE_ROLES
@@ -281,6 +288,7 @@ class EmployeeBranchService:
         page_size: int = 10,
         search: str | None = None,
         role_id: int | None = None,
+        tenant_id: int = 0,
     ) -> dict:
 
         branch = db.get(
@@ -288,7 +296,7 @@ class EmployeeBranchService:
             branch_id,
         )
 
-        if branch is None:
+        if branch is None or branch.tenant_id != tenant_id:
             raise LookupError(
                 "Sucursal no encontrada."
             )
@@ -303,6 +311,7 @@ class EmployeeBranchService:
                 branch_id=branch_id,
                 role_id=role_id,
                 is_active=True,
+                tenant_id=tenant_id,
             )
         )
 
@@ -370,7 +379,7 @@ class EmployeeBranchService:
                 "La sucursal asignada no existe."
             )
 
-        if not branch.is_active:
+        if branch.tenant_id != current_user.tenant_id or not branch.is_active:
             raise LookupError(
                 "La sucursal asignada está inactiva."
             )
@@ -514,6 +523,7 @@ class EmployeeBranchService:
         user_id: int,
         page: int = 1,
         page_size: int = 10,
+        tenant_id: int = 0,
     ) -> dict:
 
         user = db.get(
@@ -521,7 +531,7 @@ class EmployeeBranchService:
             user_id,
         )
 
-        if user is None:
+        if user is None or user.tenant_id != tenant_id:
             raise LookupError(
                 "Empleado no encontrado."
             )
@@ -542,9 +552,10 @@ class EmployeeBranchService:
         query = (
             EmployeeBranchService
             ._base_query(db)
+            .join(Branch, EmployeeBranch.branch_id == Branch.id)
             .filter(
-                EmployeeBranch.user_id
-                == user_id
+                EmployeeBranch.user_id == user_id,
+                Branch.tenant_id == tenant_id,
             )
         )
 
@@ -597,6 +608,7 @@ class EmployeeBranchService:
         page_size: int = 10,
         search: str | None = None,
         role_id: int | None = None,
+        tenant_id: int = 0,
     ) -> dict:
 
         page = max(
@@ -638,6 +650,7 @@ class EmployeeBranchService:
                 == Role.id,
             )
             .filter(
+                User.tenant_id == tenant_id,
                 User.is_active.is_(True),
                 Role.is_active.is_(True),
                 Role.name.in_(
@@ -740,6 +753,7 @@ class EmployeeBranchService:
     def _validate_employee(
         db: Session,
         user_id: int,
+        tenant_id: int,
     ) -> User:
 
         user = (
@@ -750,8 +764,8 @@ class EmployeeBranchService:
                 )
             )
             .filter(
-                User.id
-                == user_id
+                User.id == user_id,
+                User.tenant_id == tenant_id,
             )
             .first()
         )
@@ -797,6 +811,7 @@ class EmployeeBranchService:
     def _validate_branch(
         db: Session,
         branch_id: int,
+        tenant_id: int,
     ) -> Branch:
 
         branch = db.get(
@@ -804,7 +819,7 @@ class EmployeeBranchService:
             branch_id,
         )
 
-        if branch is None:
+        if branch is None or branch.tenant_id != tenant_id:
             raise ValueError(
                 "La sucursal seleccionada no existe."
             )
@@ -825,6 +840,7 @@ class EmployeeBranchService:
         db: Session,
         payload: EmployeeBranchCreate,
         performed_by_user_id: int | None,
+        tenant_id: int,
         ip_address: str | None = None,
         user_agent: str | None = None,
     ) -> EmployeeBranch:
@@ -834,6 +850,7 @@ class EmployeeBranchService:
             ._validate_employee(
                 db,
                 payload.user_id,
+                tenant_id,
             )
         )
 
@@ -842,6 +859,7 @@ class EmployeeBranchService:
             ._validate_branch(
                 db,
                 payload.branch_id,
+                tenant_id,
             )
         )
 
@@ -955,6 +973,7 @@ class EmployeeBranchService:
             .get_assignment(
                 db,
                 assignment.id,
+                tenant_id,
             )
         )
 
@@ -968,6 +987,7 @@ class EmployeeBranchService:
         assignment_id: int,
         payload: EmployeeBranchReassign,
         performed_by_user_id: int | None,
+        tenant_id: int,
         ip_address: str | None = None,
         user_agent: str | None = None,
     ) -> EmployeeBranch:
@@ -977,6 +997,7 @@ class EmployeeBranchService:
             .get_assignment(
                 db,
                 assignment_id,
+                tenant_id,
             )
         )
 
@@ -992,6 +1013,7 @@ class EmployeeBranchService:
             ._validate_branch(
                 db,
                 payload.branch_id,
+                tenant_id,
             )
         )
 
@@ -1110,6 +1132,7 @@ class EmployeeBranchService:
             .get_assignment(
                 db,
                 new_assignment.id,
+                tenant_id,
             )
         )
 
@@ -1122,6 +1145,7 @@ class EmployeeBranchService:
         db: Session,
         assignment_id: int,
         performed_by_user_id: int | None,
+        tenant_id: int,
         ip_address: str | None = None,
         user_agent: str | None = None,
     ) -> EmployeeBranch:
@@ -1131,6 +1155,7 @@ class EmployeeBranchService:
             .get_assignment(
                 db,
                 assignment_id,
+                tenant_id,
             )
         )
 
@@ -1215,5 +1240,6 @@ class EmployeeBranchService:
             .get_assignment(
                 db,
                 assignment.id,
+                tenant_id,
             )
         )

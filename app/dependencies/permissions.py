@@ -132,6 +132,19 @@ def require_permission(
             )
 
 
+        # Los permisos empresariales no son permisos globales.
+        if user.platform_admin is not None and user.platform_admin.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="El administrador global no utiliza permisos empresariales.",
+            )
+
+        if user.tenant_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="No hay empresa asignada para esta operación.",
+            )
+
         # =================================================
         # VALIDAR PERMISO
         # =================================================

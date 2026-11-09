@@ -126,6 +126,7 @@ def get_global_inventory(
         GlobalInventoryService
         .get_global_inventory(
             db=db,
+            tenant_id=current_user.tenant_id,
 
             page=page,
 

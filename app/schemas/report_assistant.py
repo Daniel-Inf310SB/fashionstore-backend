@@ -22,6 +22,7 @@ class ReportAssistantResponse(BaseModel):
     action: AssistantAction
     mode: AssistantMode = "replace"
     export_format: ExportFormat | None = None
+    analysis_kind: Literal["top_products", "branch_comparison", "weekly_sales", "category_revenue"] | None = None
     filters: dict[str, Any] = Field(default_factory=dict)
     can_execute: bool = True
     message: str

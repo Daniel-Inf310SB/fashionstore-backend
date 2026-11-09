@@ -1,4 +1,5 @@
 from datetime import datetime
+from uuid import UUID
 from decimal import Decimal
 from typing import Literal
 
@@ -181,6 +182,8 @@ class ReservationItemCreate(BaseModel):
 
 class ReservationCreate(BaseModel):
 
+    client_operation_id: UUID | None = None
+
     customer_id: int | None = Field(
         default=None,
         ge=1,
@@ -216,6 +219,8 @@ class ReservationCreate(BaseModel):
 # =========================================================
 
 class CustomerReservationCreate(BaseModel):
+
+    client_operation_id: UUID | None = None
 
     branch_id: int = Field(
         ...,

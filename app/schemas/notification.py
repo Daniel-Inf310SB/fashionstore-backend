@@ -4,7 +4,13 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict
 
 
-NotificationType = Literal["ORDER", "RESERVATION", "PAYMENT", "SYSTEM"]
+# Compatibilidad con las notificaciones de campañas ya persistidas en la BD.
+# La API debe aceptar estos tipos aunque los registros se hayan creado
+# con versiones anteriores del servicio de marketing.
+NotificationType = Literal[
+    "ORDER", "RESERVATION", "PAYMENT", "SYSTEM",
+    "PROMOTION", "COLLECTION", "SEASON", "POST_SALE",
+]
 
 
 class NotificationResponse(BaseModel):

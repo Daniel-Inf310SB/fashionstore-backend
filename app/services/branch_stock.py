@@ -33,6 +33,7 @@ class BranchStockService:
 
     ADMIN_ROLES = {
         "ADMINISTRADOR",
+        "TENANT_ADMIN",
         "SUPERADMIN",
     }
 
@@ -59,6 +60,13 @@ class BranchStockService:
         )
 
         if role in BranchStockService.ADMIN_ROLES:
+            if requested_branch_id is not None:
+                branch = db.query(Branch).filter(
+                    Branch.id == requested_branch_id,
+                    Branch.tenant_id == current_user.tenant_id,
+                ).first()
+                if branch is None:
+                    raise PermissionError("La sucursal no pertenece a tu empresa.")
             return requested_branch_id
 
         if role in BranchStockService.BRANCH_ROLES:
@@ -67,6 +75,9 @@ class BranchStockService:
                 db=db,
                 user_id=current_user.id,
             )
+
+            if branch.tenant_id != current_user.tenant_id:
+                raise PermissionError("La sucursal no pertenece a tu empresa.")
 
             if (
                 requested_branch_id is not None
@@ -208,6 +219,15 @@ class BranchStockService:
             ._base_query(
                 db
             )
+        )
+
+
+        # Límite obligatorio por tenant, independiente de los filtros enviados.
+        if current_user.tenant_id is None:
+            raise PermissionError("El usuario no tiene empresa asignada.")
+        query = query.filter(
+            Branch.tenant_id == current_user.tenant_id,
+            Product.tenant_id == current_user.tenant_id,
         )
 
 

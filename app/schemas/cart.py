@@ -1,3 +1,4 @@
+from uuid import UUID
 from datetime import datetime
 from decimal import Decimal
 from typing import Literal
@@ -193,6 +194,8 @@ class CartListResponse(BaseModel):
 # =========================================================
 
 class CartItemAddRequest(BaseModel):
+    # Optional for old online clients; REQUIRED for reliable offline replay.
+    client_operation_id: UUID | None = None
     branch_id: int = Field(
         ...,
         ge=1,
@@ -242,3 +245,12 @@ class CartClearResponse(BaseModel):
     removed_items: int
     total_items: int = 0
     total_units: int = 0
+
+
+class CartOfflineOperationStatusResponse(BaseModel):
+    client_operation_id: str
+    applied: bool
+    branch_id: int | None = None
+    product_variant_id: int | None = None
+    quantity: int | None = None
+    created_at: datetime | None = None

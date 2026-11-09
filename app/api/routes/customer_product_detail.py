@@ -1,3 +1,5 @@
+from uuid import UUID
+from app.api.routes.store_branches import resolve_storefront_tenant
 from fastapi import (
     APIRouter,
     Depends,
@@ -30,6 +32,26 @@ router = APIRouter(
         "Store - Customer Products"
     ],
 )
+
+
+# Identificador público; los IDs internos continúan usándose en carrito y pedidos.
+@router.get("/public/{public_id}")
+def resolve_public_product(
+    public_id: UUID,
+    tenant_slug: str | None = Query(default=None, min_length=1, max_length=100),
+    db: Session = Depends(get_db),
+):
+    from fastapi import HTTPException
+    from app.models.product import Product
+    tenant = resolve_storefront_tenant(db, tenant_slug)
+    product = db.query(Product).filter(
+        Product.public_id == public_id,
+        Product.tenant_id == tenant.id,
+        Product.is_active.is_(True),
+    ).first()
+    if product is None:
+        raise HTTPException(status_code=404, detail="Producto no disponible en esta empresa")
+    return {"id": product.id, "public_id": str(product.public_id)}
 
 
 # =========================================================
@@ -66,6 +88,7 @@ def get_customer_product_availability(
     db: Session = Depends(
         get_db
     ),
+    tenant_slug: str | None = Query(default=None, min_length=1, max_length=100),
 ):
 
     return (
@@ -81,6 +104,8 @@ def get_customer_product_availability(
 
             city_id=
                 city_id,
+
+            tenant_id=resolve_storefront_tenant(db, tenant_slug).id,
         )
     )
 
@@ -114,6 +139,7 @@ def get_customer_product_detail(
     db: Session = Depends(
         get_db
     ),
+    tenant_slug: str | None = Query(default=None, min_length=1, max_length=100),
 ):
 
     return (
@@ -126,5 +152,7 @@ def get_customer_product_detail(
 
             branch_id=
                 branch_id,
+
+            tenant_id=resolve_storefront_tenant(db, tenant_slug).id,
         )
     )

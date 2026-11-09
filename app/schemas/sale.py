@@ -1,4 +1,5 @@
 from datetime import datetime
+from uuid import UUID
 from decimal import Decimal
 from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
@@ -8,8 +9,11 @@ SaleStatus = Literal['PENDING','PAID','CANCELLED','REFUNDED']
 class SaleItemCreate(BaseModel):
     product_variant_id: int = Field(..., ge=1)
     quantity: int = Field(..., ge=1)
+    # Precio capturado localmente. Opcional para clientes previos y ventas online.
+    expected_unit_price: Decimal | None = Field(default=None, ge=0, max_digits=10, decimal_places=2)
 
 class SaleCreate(BaseModel):
+    client_operation_id: UUID | None = None
     branch_id: int | None = Field(default=None, ge=1)
     customer_id: int | None = Field(default=None, ge=1)
     items: list[SaleItemCreate] = Field(..., min_length=1)
@@ -136,6 +140,7 @@ class CashierContextBranchResponse(BaseModel):
 
 
 class CashierSaleContextResponse(BaseModel):
+    tenant_id: int
     cashier: SaleUserResponse
     branch: CashierContextBranchResponse
 

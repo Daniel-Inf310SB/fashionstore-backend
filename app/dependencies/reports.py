@@ -7,6 +7,7 @@ from typing import Literal
 from fastapi import Depends, Query
 
 from app.dependencies.permissions import require_permission
+from app.dependencies.plan_features import require_plan_feature
 from app.models.user import User
 from app.schemas.reports import (
     InventoryReportFilters,
@@ -25,6 +26,7 @@ require_reports_view = require_permission("reports.view")
 
 def get_reports_user(
     current_user: User = Depends(require_reports_view),
+    _: User = Depends(require_plan_feature("advanced_reports")),
 ) -> User:
     return current_user
 

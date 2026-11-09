@@ -1,3 +1,4 @@
+from app.api.routes.store_branches import resolve_storefront_tenant
 from decimal import Decimal
 
 from typing import Literal
@@ -32,6 +33,66 @@ router = APIRouter(
         "Store - Customer Catalog"
     ],
 )
+
+
+# Opciones de filtros basadas exclusivamente en los productos de esta empresa y sucursal.
+@router.get("/facets")
+def get_catalog_facets(
+    branch_id: int = Query(..., ge=1),
+    tenant_slug: str | None = Query(default=None, min_length=1, max_length=100),
+    db: Session = Depends(get_db),
+):
+    from fastapi import HTTPException
+    from app.models.branch import Branch
+    from app.models.product import Product
+    from app.models.category import Category
+    from app.models.audience import Audience
+    from app.models.product_variant import ProductVariant
+    from app.models.inventory import Inventory
+    from app.models.size import Size
+    from app.models.color import Color
+
+    tenant = resolve_storefront_tenant(db, tenant_slug)
+    branch = db.query(Branch.id).filter(
+        Branch.id == branch_id,
+        Branch.tenant_id == tenant.id,
+        Branch.is_active.is_(True),
+    ).first()
+    if branch is None:
+        raise HTTPException(status_code=404, detail="Sucursal no disponible en esta empresa.")
+
+    products = db.query(Product.id).filter(
+        Product.tenant_id == tenant.id, Product.is_active.is_(True)
+    ).subquery()
+    variants = db.query(ProductVariant.id, ProductVariant.product_id,
+                        ProductVariant.size_id, ProductVariant.color_id).join(
+        products, ProductVariant.product_id == products.c.id
+    ).join(Inventory, Inventory.product_variant_id == ProductVariant.id).filter(
+        Inventory.branch_id == branch_id, ProductVariant.is_active.is_(True)
+    ).subquery()
+
+    categories = db.query(Category.id, Category.name).join(
+        Product, Product.category_id == Category.id
+    ).join(variants, variants.c.product_id == Product.id).filter(
+        Product.tenant_id == tenant.id, Product.is_active.is_(True)
+    ).distinct().order_by(Category.name).all()
+    audiences = db.query(Audience.id, Audience.name).join(
+        Product, Product.audience_id == Audience.id
+    ).join(variants, variants.c.product_id == Product.id).filter(
+        Product.tenant_id == tenant.id, Product.is_active.is_(True)
+    ).distinct().order_by(Audience.name).all()
+    sizes = db.query(Size.id, Size.name).join(
+        variants, variants.c.size_id == Size.id
+    ).distinct().order_by(Size.name).all()
+    colors = db.query(Color.id, Color.name).join(
+        variants, variants.c.color_id == Color.id
+    ).distinct().order_by(Color.name).all()
+    return {
+        "audiences": [{"id": id, "name": name} for id, name in audiences],
+        "categories": [{"id": id, "name": name} for id, name in categories],
+        "sizes": [{"id": id, "name": name} for id, name in sizes],
+        "colors": [{"id": id, "name": name} for id, name in colors],
+    }
 
 
 # =========================================================
@@ -145,12 +206,15 @@ def get_customer_catalog(
     db: Session = Depends(
         get_db
     ),
+    tenant_slug: str | None = Query(default=None, min_length=1, max_length=100),
 ):
 
     return (
         CustomerCatalogService
         .get_catalog(
             db=db,
+
+            tenant_id=resolve_storefront_tenant(db, tenant_slug).id,
 
             page=page,
 

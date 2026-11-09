@@ -38,6 +38,23 @@ class Sale(Base):
         ),
     )
 
+    # Identificador estable para reintentos de sincronizacion desde IndexedDB.
+    # Unico en PostgreSQL: impide duplicados incluso con peticiones simultaneas.
+    client_operation_id: Mapped[str | None] = mapped_column(String(36), nullable=True, unique=True, index=True)
+
+    reservation_id: Mapped[int | None] = mapped_column(
+        ForeignKey("reservations.id", ondelete="RESTRICT"), nullable=True, unique=True, index=True,
+    )
+
+    tenant = relationship("Tenant")
+
+    # Empresa propietaria del registro.
+    tenant_id: Mapped[int | None] = mapped_column(
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+    )
+
     id: Mapped[int] = mapped_column(
         primary_key=True,
         index=True,

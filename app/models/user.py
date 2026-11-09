@@ -88,6 +88,17 @@ class User(Base):
         nullable=True,
     )
 
+    # =========================================================
+    # MULTI-TENANT - EMPRESA A LA QUE PERTENECE
+    # NULL temporalmente durante la migracion y para SUPER_ADMIN.
+    # =========================================================
+
+    tenant_id: Mapped[int | None] = mapped_column(
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+    )
+
     role_id: Mapped[int] = mapped_column(
         ForeignKey("roles.id"),
         nullable=False,
@@ -132,6 +143,17 @@ class User(Base):
     # =========================================================
     # RELACIONES
     # =========================================================
+
+    tenant = relationship(
+        "Tenant",
+        back_populates="users",
+    )
+
+    platform_admin = relationship(
+        "PlatformAdmin",
+        back_populates="user",
+        uselist=False,
+    )
 
     role = relationship(
         "Role",

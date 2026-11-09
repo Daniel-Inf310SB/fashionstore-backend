@@ -34,6 +34,7 @@ class CustomerMerchandisingService:
         page: int = 1,
         page_size: int = 12,
         search: str | None = None,
+        tenant_id: int | None = None,
     ) -> dict:
         page, page_size = CustomerMerchandisingService._page(page, page_size)
         now = datetime.now(timezone.utc)
@@ -43,6 +44,9 @@ class CustomerMerchandisingService:
             Promotion.start_at <= now,
             Promotion.end_at >= now,
         )
+
+        if tenant_id is not None:
+            query = query.filter(Promotion.tenant_id == tenant_id)
 
         if search and search.strip():
             pattern = f"%{search.strip()}%"
@@ -64,6 +68,7 @@ class CustomerMerchandisingService:
                 .filter(
                     ProductPromotion.promotion_id == row.id,
                     Product.is_active.is_(True),
+                    *((Product.tenant_id == tenant_id,) if tenant_id is not None else ()),
                 )
                 .scalar()
                 or 0
@@ -94,6 +99,7 @@ class CustomerMerchandisingService:
         page: int = 1,
         page_size: int = 12,
         search: str | None = None,
+        tenant_id: int | None = None,
     ) -> dict:
         page, page_size = CustomerMerchandisingService._page(page, page_size)
         today = date.today()
@@ -101,6 +107,9 @@ class CustomerMerchandisingService:
         query = db.query(Collection).filter(Collection.is_active.is_(True))
         # A future collection remains hidden from the public Store until launch day.
         query = query.filter(or_(Collection.launch_date.is_(None), Collection.launch_date <= today))
+
+        if tenant_id is not None:
+            query = query.filter(Collection.tenant_id == tenant_id)
 
         if search and search.strip():
             pattern = f"%{search.strip()}%"
@@ -119,7 +128,8 @@ class CustomerMerchandisingService:
             product_count = (
                 db.query(func.count(func.distinct(ProductCollection.product_id)))
                 .join(Product, ProductCollection.product_id == Product.id)
-                .filter(ProductCollection.collection_id == row.id, Product.is_active.is_(True))
+                .filter(ProductCollection.collection_id == row.id, Product.is_active.is_(True),
+                    *((Product.tenant_id == tenant_id,) if tenant_id is not None else ()),)
                 .scalar()
                 or 0
             )
@@ -146,6 +156,7 @@ class CustomerMerchandisingService:
         page: int = 1,
         page_size: int = 12,
         search: str | None = None,
+        tenant_id: int | None = None,
     ) -> dict:
         page, page_size = CustomerMerchandisingService._page(page, page_size)
         today = date.today()
@@ -155,6 +166,12 @@ class CustomerMerchandisingService:
             or_(Season.start_date.is_(None), Season.start_date <= today),
             or_(Season.end_date.is_(None), Season.end_date >= today),
         )
+
+        if tenant_id is not None:
+            query = query.filter(Season.id.in_(
+                db.query(ProductSeason.season_id).join(Product, ProductSeason.product_id == Product.id)
+                .filter(Product.tenant_id == tenant_id, Product.is_active.is_(True))
+            ))
 
         if search and search.strip():
             pattern = f"%{search.strip()}%"
@@ -173,7 +190,8 @@ class CustomerMerchandisingService:
             product_count = (
                 db.query(func.count(func.distinct(ProductSeason.product_id)))
                 .join(Product, ProductSeason.product_id == Product.id)
-                .filter(ProductSeason.season_id == row.id, Product.is_active.is_(True))
+                .filter(ProductSeason.season_id == row.id, Product.is_active.is_(True),
+                        *((Product.tenant_id == tenant_id,) if tenant_id is not None else ()))
                 .scalar()
                 or 0
             )

@@ -5,11 +5,26 @@ from datetime import datetime
 from sqlalchemy import Boolean, DateTime, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from sqlalchemy import ForeignKey as TenantForeignKey
+from sqlalchemy import UniqueConstraint as TenantUniqueConstraint
 from app.database.base import Base
 
 
 class Supplier(Base):
     __tablename__ = "suppliers"
+
+    __table_args__ = (
+        TenantUniqueConstraint("tenant_id", "nit", name="uq_suppliers_tenant_nit"),
+    )
+
+    tenant = relationship("Tenant")
+
+    # Empresa propietaria del registro.
+    tenant_id: Mapped[int | None] = mapped_column(
+        TenantForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+    )
 
     id: Mapped[int] = mapped_column(
         primary_key=True,
@@ -30,7 +45,6 @@ class Supplier(Base):
     nit: Mapped[str] = mapped_column(
         String(40),
         nullable=False,
-        unique=True,
         index=True,
     )
 

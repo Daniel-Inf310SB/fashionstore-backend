@@ -76,6 +76,9 @@ def build_user_response(
         photo_url=user.photo_url,
 
         role=user.role.name,
+        tenant_id=user.tenant_id,
+        tenant_name=user.tenant.name if user.tenant else None,
+        tenant_slug=user.tenant.slug if user.tenant else None,
 
         permissions=permissions,
 
@@ -83,6 +86,22 @@ def build_user_response(
         is_verified=user.is_verified,
         profile_completed=user.profile_completed,
     )
+
+
+# CU53: contexto siempre derivado del token y PostgreSQL.
+# Una cuenta puede tener un único tenant activo en el modelo actual.
+@router.get("/me", response_model=UserAuthResponse)
+def current_session_user(
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+    db: Session = Depends(get_db),
+):
+    try:
+        user = AuthService.get_user_from_access_token(
+            db=db, access_token=credentials.credentials,
+        )
+        return build_user_response(user)
+    except PermissionError as error:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(error)) from error
 
 
 # =========================
@@ -111,6 +130,12 @@ def register(
             ),
             email=user.email,
         )
+
+    except LookupError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(error),
+        ) from error
 
     except PermissionError as error:
         raise HTTPException(

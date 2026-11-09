@@ -81,6 +81,7 @@ class ProductService:
             "asc",
             "desc",
         ] = "asc",
+        tenant_id: int | None = None,
     ) -> dict:
 
         page = max(
@@ -100,6 +101,9 @@ class ProductService:
             ProductService
             ._base_query(db)
         )
+
+        if tenant_id is not None:
+            query = query.filter(Product.tenant_id == tenant_id)
 
         # =================================================
         # BÚSQUEDA

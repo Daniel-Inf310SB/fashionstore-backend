@@ -1,4 +1,5 @@
 import math
+from datetime import datetime, timezone
 from typing import Literal
 
 from sqlalchemy import (
@@ -11,6 +12,10 @@ from sqlalchemy.orm import (
 )
 
 from app.models.branch import Branch
+from app.models.tenant import Tenant
+from app.models.tenant_subscription import TenantSubscription
+from app.models.subscription_plan import SubscriptionPlan
+from app.services.subscription_coverage import subscription_valid_now
 from app.models.city import City
 from app.models.employee_branch import EmployeeBranch
 from app.services.audit_log_service import AuditLogService
@@ -108,6 +113,7 @@ class BranchService:
             "asc",
             "desc",
         ] = "asc",
+        tenant_id: int | None = None,
     ) -> dict:
 
         page = max(
@@ -133,6 +139,11 @@ class BranchService:
                 Branch.city_id == City.id,
             )
         )
+
+        # Solo registros del tenant; sin contexto jamás listar globalmente.
+        if tenant_id is None:
+            raise ValueError("Se necesita un tenant activo para listar sucursales.")
+        query = query.filter(Branch.tenant_id == tenant_id)
 
         # =================================================
         # SEARCH
@@ -311,9 +322,40 @@ class BranchService:
         db: Session,
         payload: BranchCreate,
         user_id: int | None,
+        tenant_id: int | None,
         ip_address: str | None = None,
         user_agent: str | None = None,
     ) -> Branch:
+
+        if tenant_id is None:
+            raise ValueError("Se requiere una empresa autenticada para crear sucursales.")
+
+        # Serializa altas concurrentes del mismo tenant para respetar el límite.
+        tenant = (db.query(Tenant)
+                  .filter(Tenant.id == tenant_id)
+                  .with_for_update()
+                  .one_or_none())
+        if tenant is None or not tenant.is_active:
+            raise ValueError("La empresa no está activa.")
+
+        subscription = (db.query(TenantSubscription)
+                        .filter(TenantSubscription.tenant_id == tenant_id)
+                        .one_or_none())
+        now = datetime.now(timezone.utc)
+        if subscription is None or subscription.status != "ACTIVE":
+            raise ValueError("La empresa necesita una suscripción activa.")
+        if not subscription_valid_now(db, subscription, now):
+            raise ValueError("La suscripción no cubre la fecha actual con un período pagado vigente.")
+
+        plan = db.query(SubscriptionPlan).filter(SubscriptionPlan.id == subscription.plan_id).one_or_none()
+        if plan is None or not plan.is_active:
+            raise ValueError("El plan contratado no está disponible.")
+        if plan.max_branches is not None:
+            branch_count = (db.query(Branch)
+                            .filter(Branch.tenant_id == tenant_id, Branch.is_active.is_(True))
+                            .count())
+            if branch_count >= plan.max_branches:
+                raise ValueError(f"Tu plan permite como máximo {plan.max_branches} sucursal(es) activa(s).")
 
         # =================================================
         # VALIDAR CIUDAD
@@ -339,6 +381,7 @@ class BranchService:
             latitude=payload.latitude,
             longitude=payload.longitude,
             city_id=payload.city_id,
+            tenant_id=tenant_id,
             is_active=True,
         )
 
@@ -523,9 +566,31 @@ class BranchService:
             and update_data["is_active"]
             is not None
         ):
-            branch.is_active = (
-                update_data["is_active"]
-            )
+            # CU56: reactivar consume un cupo igual que crear una sucursal.
+            # Bloqueamos la fila del tenant para serializar las altas/reactivaciones.
+            if update_data["is_active"] and not branch.is_active:
+                tenant = (db.query(Tenant)
+                          .filter(Tenant.id == branch.tenant_id)
+                          .with_for_update().one_or_none())
+                if tenant is None or not tenant.is_active:
+                    raise ValueError("La empresa no está activa.")
+                subscription = (db.query(TenantSubscription)
+                                .filter(TenantSubscription.tenant_id == branch.tenant_id)
+                                .one_or_none())
+                if subscription is None or not subscription_valid_now(db, subscription, datetime.now(timezone.utc)):
+                    raise ValueError("Necesitas una suscripción vigente para reactivar sucursales.")
+                plan = db.get(SubscriptionPlan, subscription.plan_id)
+                if plan is None or not plan.is_active:
+                    raise ValueError("El plan contratado no está disponible.")
+                if plan.max_branches is not None:
+                    active_count = (db.query(Branch)
+                                    .filter(Branch.tenant_id == branch.tenant_id,
+                                            Branch.is_active.is_(True)).count())
+                    if active_count >= plan.max_branches:
+                        raise ValueError(
+                            f"Tu plan permite como máximo {plan.max_branches} sucursal(es) activa(s)."
+                        )
+            branch.is_active = update_data["is_active"]
 
         db.flush()
 

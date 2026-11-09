@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import math
+import hashlib
+import json
 
 from decimal import Decimal
 
@@ -17,6 +19,8 @@ from sqlalchemy.orm import (
 from app.models.branch import (
     Branch,
 )
+from app.models.cart_offline_operation import CartOfflineOperation
+
 from app.models.cart_item import (
     CartItem,
 )
@@ -34,6 +38,10 @@ from app.models.user import (
 )
 
 from app.services.customer_pricing import CustomerPricingService
+
+
+class CartOperationConflict(ValueError):
+    """An operation ID was reused with a different cart mutation."""
 
 
 class CartService:
@@ -371,6 +379,7 @@ class CartService:
         cart_status: str | None = None,
         branch_id: int | None = None,
         customer_id: int | None = None,
+        tenant_id: int | None = None,
     ) -> dict:
 
         page = max(
@@ -401,6 +410,13 @@ class CartService:
             )
         )
 
+
+        if tenant_id is not None:
+            query = query.filter(User.tenant_id == tenant_id).outerjoin(
+                Branch, ShoppingCart.branch_id == Branch.id
+            ).filter(
+                (ShoppingCart.branch_id.is_(None)) | (Branch.tenant_id == tenant_id)
+            )
 
         # =================================================
         # ESTADO
@@ -595,6 +611,7 @@ class CartService:
 
         *,
         cart_id: int,
+        tenant_id: int | None = None,
     ) -> dict:
 
         cart = (
@@ -605,6 +622,12 @@ class CartService:
             )
         )
 
+
+        if tenant_id is not None:
+            if cart.customer.tenant_id != tenant_id or (
+                cart.branch is not None and cart.branch.tenant_id != tenant_id
+            ):
+                raise LookupError("El carrito no existe en tu empresa.")
 
         return (
             CartService
@@ -640,6 +663,37 @@ class CartService:
             )
 
         return branch
+
+
+    @staticmethod
+    def _validate_customer_branch(
+        db: Session,
+        *,
+        customer_id: int,
+        branch_id: int,
+    ) -> Branch:
+        """Fail closed: customer and branch must belong to the same tenant."""
+        branch = CartService._validate_branch(db, branch_id=branch_id)
+        customer = db.query(User).filter(User.id == customer_id, User.is_active.is_(True)).first()
+        if customer is None or customer.tenant_id is None or branch.tenant_id is None:
+            raise PermissionError("No existe una empresa activa asociada al cliente y la sucursal.")
+        if customer.tenant_id != branch.tenant_id:
+            raise PermissionError("No puedes operar con el carrito de otra empresa.")
+        return branch
+
+
+    @staticmethod
+    def _validate_owned_cart_tenant(
+        db: Session,
+        *,
+        customer_id: int,
+        cart: ShoppingCart,
+    ) -> Branch:
+        if cart.branch_id is None:
+            raise PermissionError("El carrito no tiene una sucursal válida.")
+        return CartService._validate_customer_branch(
+            db, customer_id=customer_id, branch_id=cart.branch_id,
+        )
 
 
     @staticmethod
@@ -728,8 +782,9 @@ class CartService:
         customer_id: int,
         branch_id: int,
     ) -> ShoppingCart:
-        CartService._validate_branch(
+        CartService._validate_customer_branch(
             db,
+            customer_id=customer_id,
             branch_id=branch_id,
         )
 
@@ -780,6 +835,9 @@ class CartService:
                 "El artículo no existe en tu carrito activo."
             )
 
+        CartService._validate_owned_cart_tenant(
+            db, customer_id=customer_id, cart=row[1],
+        )
         return row[0], row[1]
 
 
@@ -794,8 +852,9 @@ class CartService:
         customer_id: int,
         branch_id: int,
     ) -> dict:
-        CartService._validate_branch(
+        CartService._validate_customer_branch(
             db,
+            customer_id=customer_id,
             branch_id=branch_id,
         )
 
@@ -838,8 +897,9 @@ class CartService:
         customer_id: int,
         branch_id: int,
     ) -> dict:
-        CartService._validate_branch(
+        CartService._validate_customer_branch(
             db,
+            customer_id=customer_id,
             branch_id=branch_id,
         )
 
@@ -878,6 +938,7 @@ class CartService:
         branch_id: int,
         product_variant_id: int,
         quantity: int,
+        client_operation_id: str | None = None,
     ) -> dict:
         if quantity <= 0:
             raise ValueError(
@@ -885,15 +946,53 @@ class CartService:
             )
 
         try:
-            CartService._validate_branch(
-                db,
-                branch_id=branch_id,
-            )
+            # Serialize modifications by customer, including legacy requests.
+            # This prevents two concurrent ADDs from reading the same quantity.
+            (db.query(User.id).filter(User.id == customer_id)
+             .with_for_update().one())
 
-            CartService._get_variant_for_cart(
-                db,
-                product_variant_id=product_variant_id,
+            payload_hash = None
+            if client_operation_id is not None:
+                canonical = {
+                    "branch_id": branch_id,
+                    "product_variant_id": product_variant_id,
+                    "quantity": quantity,
+                }
+                payload_hash = hashlib.sha256(json.dumps(
+                    canonical, sort_keys=True, separators=(",", ":")
+                ).encode("utf-8")).hexdigest()
+                receipt = db.query(CartOfflineOperation).filter(
+                    CartOfflineOperation.customer_id == customer_id,
+                    CartOfflineOperation.client_operation_id == client_operation_id,
+                ).first()
+                if receipt is not None:
+                    # Preserve current tenant/branch authorization on replay.
+                    CartService._validate_customer_branch(
+                        db, customer_id=customer_id, branch_id=branch_id,
+                    )
+                    if receipt.payload_hash != payload_hash:
+                        raise CartOperationConflict(
+                            "Este identificador ya se utilizó para otra operación del carrito."
+                        )
+                    # Existing cart may have changed since the original ADD;
+                    # do not apply the quantity again. Return current state.
+                    cart = CartService._get_active_cart_entity(
+                        db, customer_id=customer_id, branch_id=branch_id,
+                    )
+                    if cart is None:
+                        raise CartOperationConflict(
+                            "El carrito original ya no está activo. La operación fue aplicada anteriormente."
+                        )
+                    return CartService._serialize(db, cart)
+
+            branch = CartService._validate_customer_branch(
+                db, customer_id=customer_id, branch_id=branch_id,
             )
+            variant = CartService._get_variant_for_cart(
+                db, product_variant_id=product_variant_id,
+            )
+            if variant.product.tenant_id is None or variant.product.tenant_id != branch.tenant_id:
+                raise PermissionError("La variante no pertenece a la empresa de la sucursal.")
 
             available = CartService._available_stock(
                 db,
@@ -940,14 +1039,26 @@ class CartService:
             else:
                 item.quantity = new_quantity
 
+            # The receipt and cart change MUST commit atomically. A lost HTTP
+            # response is safe to retry using the same client_operation_id.
+            if client_operation_id is not None:
+                db.add(CartOfflineOperation(
+                    customer_id=customer_id,
+                    tenant_id=branch.tenant_id,
+                    branch_id=branch_id,
+                    client_operation_id=client_operation_id,
+                    payload_hash=payload_hash,
+                    product_variant_id=product_variant_id,
+                    quantity=quantity,
+                ))
+            db.flush()
+            # Refresh relationships modified by this transaction before
+            # serializing a cart containing newly inserted items.
+            db.expire_all()
+            refreshed = CartService._get_cart(db, cart.id)
+            result = CartService._serialize(db, refreshed)
             db.commit()
-
-            refreshed = CartService._get_cart(
-                db,
-                cart.id,
-            )
-
-            return CartService._serialize(db, refreshed)
+            return result
 
         except Exception:
             db.rollback()
@@ -1054,8 +1165,9 @@ class CartService:
         customer_id: int,
         branch_id: int,
     ) -> dict:
-        CartService._validate_branch(
+        CartService._validate_customer_branch(
             db,
+            customer_id=customer_id,
             branch_id=branch_id,
         )
 

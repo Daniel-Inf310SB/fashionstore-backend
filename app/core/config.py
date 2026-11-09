@@ -83,6 +83,9 @@ class Settings(BaseSettings):
     reservation_ttl_hours: int = 24
     expiration_check_minutes: int = 5
     expiration_scheduler_enabled: bool = True
+    stripe_reconciliation_enabled: bool = True
+    stripe_reconciliation_interval_seconds: int = 15
+    stripe_reconciliation_batch_size: int = 25
 
     # =========================
     # FIREBASE / FCM

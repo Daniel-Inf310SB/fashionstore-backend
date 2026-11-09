@@ -45,6 +45,7 @@ class CashPaymentService:
         current_user: User,
         sale_id: int,
         data: CashDeskPaymentCreate,
+        commit: bool = True,
     ):
 
         # =================================================
@@ -124,10 +125,9 @@ class CashPaymentService:
         # =================================================
 
         if (
-            sale.cashier_id
-            != current_user.id
-            or sale.branch_id
-            != assignment.branch_id
+            sale.tenant_id != current_user.tenant_id
+            or sale.cashier_id != current_user.id
+            or sale.branch_id != assignment.branch_id
         ):
 
             raise PermissionError(
@@ -522,15 +522,12 @@ class CashPaymentService:
         # 17. COMMIT
         # =================================================
 
-        db.commit()
-
-        db.refresh(
-            payment
-        )
-
-        db.refresh(
-            sale
-        )
+        if commit:
+            db.commit()
+            db.refresh(payment)
+            db.refresh(sale)
+        else:
+            db.flush()
 
 
         # =================================================

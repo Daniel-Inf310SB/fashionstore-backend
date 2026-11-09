@@ -1,40 +1,58 @@
-# Virtual environments
+
+# ==========================================
+# FASHIONSTORE BACKEND - GITIGNORE
+# ==========================================
+
+# Entornos virtuales
 .venv/
 venv/
+env/
 
-# Python cache / compiled files
+# Python - caché y archivos compilados
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*$py.class
 
-# Environment variables
+# Variables de entorno
 .env
 .env.*
+!.env.example
 
-# IDEs / editors
+# Credenciales y secretos
+secrets/
+*service-account*.json
+
+# IDEs y editores
 .idea/
 .vscode/
 
-# Test / type-check caches
+# Cachés de pruebas y análisis
 .pytest_cache/
 .mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
 
-# Build outputs
+# Archivos compilados
 dist/
 build/
+*.egg-info/
 
-# Local databases
+# Bases de datos locales
 *.sqlite3
 *.db
 
-# Local backups
+# Respaldos y archivos temporales
+*.bak
+*.bak_*
+*.log
 app.zip
 
-# System files
+# Resultados locales de Machine Learning
+ml_demo_results.json
+ml_results_updated.json
+
+# Archivos del sistema
 desktop.ini
 .DS_Store
 Thumbs.db
-# Secretos locales
-.env
-secrets/

@@ -30,6 +30,7 @@ from app.models.password_reset_code import (
 )
 
 from app.models.role import Role
+from app.models.tenant import Tenant
 from app.models.user import User
 from app.models.user_session import UserSession
 from app.schemas.auth import (
@@ -631,6 +632,16 @@ class AuthService:
         data: RegisterRequest,
     ) -> User:
 
+        # El tenant siempre se resuelve en el servidor, nunca se acepta un tenant_id.
+        tenant = db.scalar(
+            select(Tenant).where(
+                Tenant.slug == data.tenant_slug,
+                Tenant.is_active.is_(True),
+            )
+        )
+        if tenant is None:
+            raise LookupError("La empresa no esta disponible para registros")
+
         normalized_email = (
             data.email
             .strip()
@@ -749,6 +760,8 @@ class AuthService:
             google_id=None,
 
             photo_url=None,
+
+            tenant_id=tenant.id,
 
             role_id=client_role.id,
 
@@ -1231,6 +1244,21 @@ class AuthService:
         )
 
 
+        # La tienda la elige el visitante, pero la pertenencia se valida en el servidor.
+        requested_tenant = None
+        if data.tenant_slug:
+            requested_tenant = db.scalar(select(Tenant).where(
+                Tenant.slug == data.tenant_slug,
+                Tenant.is_active.is_(True),
+            ))
+            if requested_tenant is None:
+                raise ValueError("La tienda seleccionada no admite registros")
+
+        def check_google_tenant(existing: User) -> None:
+            # Una cuenta existente no puede cambiar silenciosamente de tenant.
+            if requested_tenant is not None and existing.tenant_id != requested_tenant.id:
+                raise ValueError("Este correo pertenece a otra tienda o no tiene una tienda asignada. Ingresa desde la tienda de tu cuenta.")
+
         # =========================
         # EXISTE POR GOOGLE ID
         # =========================
@@ -1251,6 +1279,8 @@ class AuthService:
                 raise ValueError(
                     "La cuenta está desactivada"
                 )
+
+            check_google_tenant(user)
 
 
             if photo_url:
@@ -1297,6 +1327,8 @@ class AuthService:
                     "La cuenta está desactivada"
                 )
 
+            check_google_tenant(user)
+
 
             user.google_id = (
                 google_id
@@ -1334,6 +1366,9 @@ class AuthService:
 
             return user
 
+
+        if requested_tenant is None:
+            raise ValueError("Para crear una cuenta con Google, selecciona primero una tienda.")
 
         # =========================
         # NUEVO USUARIO GOOGLE
@@ -1383,6 +1418,7 @@ class AuthService:
             photo_url=photo_url,
 
             role_id=client_role.id,
+            tenant_id=requested_tenant.id,
 
             is_active=True,
 
@@ -1489,7 +1525,36 @@ class AuthService:
             )
 
 
+        # El tenant siempre se valida en PostgreSQL; no se confía
+        # en un tenant_id proporcionado por el cliente.
+        AuthService.validate_tenant_access(db, user)
+
+        token_tenant_id = payload.get("tenant_id")
+        if token_tenant_id is not None and token_tenant_id != user.tenant_id:
+            raise PermissionError("El contexto empresarial del token ha cambiado")
+
         return user
+
+
+    @staticmethod
+    def validate_tenant_access(db: Session, user: User) -> None:
+        """Valida el tenant actual; los administradores globales van separados."""
+        platform_admin = user.platform_admin
+        if platform_admin is not None and platform_admin.is_active:
+            if user.tenant_id is not None:
+                raise PermissionError("El administrador global no debe pertenecer a un tenant")
+            return
+
+        if user.tenant_id is None:
+            # Durante la transición, conservar el portal cliente anterior.
+            # Los accesos empresariales requieren tenant en permissions.py.
+            if user.role is not None and user.role.name == "CLIENTE":
+                return
+            raise PermissionError("La cuenta no tiene empresa asignada")
+
+        tenant = db.get(Tenant, user.tenant_id)
+        if tenant is None or not tenant.is_active:
+            raise PermissionError("La empresa está desactivada o no existe")
 
 
     # =========================
@@ -1972,6 +2037,8 @@ class AuthService:
         platform: str | None = None,
     ) -> tuple[str, str]:
 
+        AuthService.validate_tenant_access(db, user)
+
         access_token = create_access_token(
             subject=user.id,
 
@@ -1981,6 +2048,7 @@ class AuthService:
 
                 "email":
                     user.email,
+                "tenant_id": user.tenant_id,
             },
         )
 
@@ -2200,6 +2268,8 @@ class AuthService:
         )
 
 
+        AuthService.validate_tenant_access(db, user)
+
         access_token = (
             create_access_token(
                 subject=user.id,
@@ -2210,6 +2280,7 @@ class AuthService:
 
                     "email":
                         user.email,
+                    "tenant_id": user.tenant_id,
                 },
             )
         )

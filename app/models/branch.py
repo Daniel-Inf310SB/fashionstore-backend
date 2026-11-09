@@ -48,6 +48,17 @@ class Branch(Base):
         nullable=True,
     )
 
+    # =========================================================
+    # MULTI-TENANT - EMPRESA PROPIETARIA
+    # NULL temporalmente hasta asignar sucursales existentes.
+    # =========================================================
+
+    tenant_id: Mapped[int | None] = mapped_column(
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+    )
+
     city_id: Mapped[int] = mapped_column(
         ForeignKey(
             "cities.id",
@@ -74,6 +85,11 @@ class Branch(Base):
         server_default=func.now(),
         onupdate=func.now(),
         nullable=False,
+    )
+
+    tenant = relationship(
+        "Tenant",
+        back_populates="branches",
     )
 
     city = relationship(

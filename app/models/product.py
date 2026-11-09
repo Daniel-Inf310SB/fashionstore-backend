@@ -1,8 +1,10 @@
 from datetime import datetime
+from uuid import UUID, uuid4
 from decimal import Decimal
 
 from sqlalchemy import (
     Boolean,
+    Uuid,
     DateTime,
     ForeignKey,
     Numeric,
@@ -16,20 +18,35 @@ from sqlalchemy.orm import (
     relationship,
 )
 
+from sqlalchemy import UniqueConstraint as TenantUniqueConstraint
 from app.database.base import Base
 
 
 class Product(Base):
     __tablename__ = "products"
 
+    __table_args__ = (
+        TenantUniqueConstraint("tenant_id", "code", name="uq_products_tenant_code"),
+    )
+
+    tenant = relationship("Tenant")
+
+    # Empresa propietaria del registro.
+    tenant_id: Mapped[int | None] = mapped_column(
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+    )
+
     id: Mapped[int] = mapped_column(
         primary_key=True,
         index=True,
     )
 
+    public_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), default=uuid4, nullable=False, unique=True, index=True)
+
     code: Mapped[str] = mapped_column(
         String(50),
-        unique=True,
         nullable=False,
         index=True,
     )

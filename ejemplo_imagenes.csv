@@ -1,0 +1,4 @@
+tenant_slug,product_code,kind,file_path,variant_sku,alt_text
+urban-style-demo,US-P0005,cover,fotos/US-P0005/portada.webp,,Foto principal
+urban-style-demo,US-P0005,gallery,fotos/US-P0005/lateral.webp,,Vista lateral
+urban-style-demo,US-P0005,variant,fotos/US-P0005/blanco.webp,US-P0005-S-BL,Variante blanca talla S

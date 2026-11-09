@@ -1,6 +1,7 @@
+from app.services.subscription_coverage import subscription_valid_now
 import math
 
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 
 from sqlalchemy import (
     func,
@@ -18,6 +19,9 @@ from app.core.security import (
 )
 
 from app.models.role import Role
+from app.models.tenant import Tenant
+from app.models.subscription_plan import SubscriptionPlan
+from app.models.tenant_subscription import TenantSubscription
 from app.models.user import User
 
 from app.schemas.user import (
@@ -28,6 +32,48 @@ from app.schemas.user import (
 from app.services.audit_log_service import (
     AuditLogService,
 )
+
+
+# Mismos perfiles internos considerados por las restricciones de los planes SaaS.
+INTERNAL_STAFF_ROLES = ("TENANT_ADMIN", "ENCARGADO_SUCURSAL", "CAJERO", "ADMINISTRADOR")
+
+
+def enforce_staff_capacity(db: Session, tenant_id: int, *, added_staff: bool, exclude_user_id: int | None = None) -> None:
+    """Serializa las altas por empresa y evita superar el cupo contratado.
+
+    Solo se llama cuando una operación incrementa los usuarios internos activos.
+    La cantidad de asignaciones a sucursales no consume cupos extra.
+    """
+    if not added_staff:
+        return
+    # El bloqueo debe mantenerse en la transacción que crea/reactiva al usuario.
+    tenant = db.scalar(select(Tenant).where(Tenant.id == tenant_id).with_for_update())
+    if tenant is None or not tenant.is_active:
+        raise ValueError("La empresa no está disponible")
+    sub = db.scalar(select(TenantSubscription).where(TenantSubscription.tenant_id == tenant_id))
+    plan = db.get(SubscriptionPlan, sub.plan_id) if sub is not None else None
+    if sub is None or plan is None or not plan.is_active:
+        raise ValueError("La empresa no tiene un plan SaaS disponible")
+    if not subscription_valid_now(db, sub, datetime.now(timezone.utc)):
+        raise ValueError("Necesitas una suscripción vigente para incorporar o reactivar personal.")
+    if plan.max_staff is None:
+        return
+    count_query = select(func.count(User.id)).join(Role, User.role_id == Role.id).where(
+        User.tenant_id == tenant_id,
+        User.is_active.is_(True),
+        Role.name.in_(INTERNAL_STAFF_ROLES),
+    )
+    if exclude_user_id is not None:
+        count_query = count_query.where(User.id != exclude_user_id)
+    # Evita contar mutaciones del propio objeto pendientes de confirmar.
+    with db.no_autoflush:
+        current = db.scalar(count_query) or 0
+    if current >= plan.max_staff:
+        raise ValueError(
+            f"Tu plan {plan.name} permite un máximo de {plan.max_staff} "
+            "usuarios internos activos (incluidos administradores). "
+            f"Actualmente tienes {current}. Cambia de plan o desactiva una cuenta."
+        )
 
 
 class UserService:
@@ -125,9 +171,12 @@ class UserService:
         sort_by: str = "created_at",
 
         sort_order: str = "desc",
+        tenant_id: int | None = None,
     ) -> dict:
 
         filters = []
+        if tenant_id is not None:
+            filters.append(User.tenant_id == tenant_id)
 
         # =================================================
         # SEARCH
@@ -568,6 +617,8 @@ class UserService:
         current_user_id:
             int | None = None,
 
+        tenant_id: int | None = None,
+
         ip_address:
             str | None = None,
 
@@ -625,11 +676,27 @@ class UserService:
             )
         )
 
+        # Los usuarios creados desde el panel del tenant deben ser propios.
+        if tenant_id is None:
+            raise ValueError("No se pudo identificar la empresa del administrador")
+
+        # No se puede crear una identidad de plataforma desde un tenant.
+        if role.name.upper() in {"SUPER_ADMIN", "TENANT_ADMIN"}:
+            raise ValueError("Este rol solo puede ser asignado por la administracion de plataforma")
+
+        # Validación previa al INSERT; la función bloquea la fila tenant
+        # hasta el COMMIT, incluso si dos administradores actúan a la vez.
+        enforce_staff_capacity(
+            db, tenant_id,
+            added_staff=bool(data.is_active and role.name.upper() in INTERNAL_STAFF_ROLES),
+        )
+
         # =================================================
         # USER
         # =================================================
 
         user = User(
+            tenant_id=tenant_id,
             username=
                 username,
 
@@ -1016,6 +1083,24 @@ class UserService:
                     "profile_completed"
                 ]
             )
+
+        # No permitir que una edición use el rol de plataforma o sobrepase
+        # el cupo al reactivar / promover una cuenta existente.
+        old_role = db.get(Role, old_values["role_id"]) if old_values.get("role_id") else None
+        previous_staff = bool(old_values.get("is_active") and old_role and old_role.name.upper() in INTERNAL_STAFF_ROLES)
+        next_role = db.get(Role, user.role_id)
+        if next_role and next_role.name.upper() == "SUPER_ADMIN":
+            raise ValueError("No se puede asignar SUPER_ADMIN desde el panel de una empresa")
+        if next_role and next_role.name.upper() == "TENANT_ADMIN" and (not old_role or old_role.name.upper() != "TENANT_ADMIN"):
+            raise ValueError("Solo la plataforma puede asignar TENANT_ADMIN")
+        next_staff = bool(user.is_active and next_role and next_role.name.upper() in INTERNAL_STAFF_ROLES)
+        if user.tenant_id is None:
+            raise ValueError("El usuario no pertenece a ninguna empresa")
+        enforce_staff_capacity(
+            db, user.tenant_id,
+            added_staff=next_staff and not previous_staff,
+            exclude_user_id=user.id,
+        )
 
         # =================================================
         # SAVE + BITÁCORA

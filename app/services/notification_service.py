@@ -137,6 +137,10 @@ class NotificationService:
         reason: str | None = None,
     ) -> Notification | None:
         messages = {
+            "PENDING": (
+                "Solicitud de reserva recibida",
+                f"Recibimos tu reserva {reservation.reservation_code}. La sucursal revisará tu solicitud.",
+            ),
             "CONFIRMED": (
                 "Reserva confirmada",
                 f"Tu reserva {reservation.reservation_code} fue confirmada por la sucursal.",

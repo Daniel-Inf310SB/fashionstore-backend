@@ -42,6 +42,11 @@ class SalesReportFilters(BaseDateFilters):
         return self
 
 
+class CashReconciliationFilters(BaseDateFilters):
+    branch_id: int | None = Field(default=None, ge=1)
+    cashier_id: int | None = Field(default=None, ge=1)
+
+
 class InventoryReportFilters(BaseModel):
     branch_id: int | None = Field(default=None, ge=1)
     product_id: int | None = Field(default=None, ge=1)

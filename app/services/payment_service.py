@@ -22,6 +22,7 @@ from app.services.stripe_service import StripeGateway
 
 class PaymentService:
     ADMIN_ROLE = "ADMINISTRADOR"
+    TENANT_ADMIN_ROLE = "TENANT_ADMIN"
     CUSTOMER_ROLE = "CLIENTE"
     ELECTRONIC_METHODS = ("CARD", "QR", "TRANSFER")
     CANCELLABLE_STATUSES = ("PENDING", "PROCESSING")
@@ -36,7 +37,7 @@ class PaymentService:
 
     @staticmethod
     def _assert_admin(current_user: User) -> None:
-        if PaymentService._role_name(current_user) != PaymentService.ADMIN_ROLE:
+        if PaymentService._role_name(current_user) not in (PaymentService.ADMIN_ROLE, PaymentService.TENANT_ADMIN_ROLE):
             raise PermissionError(
                 "Solo el administrador puede acceder a la gestión global de pagos."
             )
@@ -66,7 +67,11 @@ class PaymentService:
     @staticmethod
     def _validate_payment_access(*, payment: Payment, current_user: User) -> None:
         role = PaymentService._role_name(current_user)
-        if role == PaymentService.ADMIN_ROLE:
+        tenant_id = getattr(current_user, "tenant_id", None)
+        source = payment.order if payment.order_id is not None else payment.sale
+        if tenant_id is None or source is None or source.tenant_id != tenant_id:
+            raise LookupError("El pago electrónico no existe en tu empresa.")
+        if role in (PaymentService.ADMIN_ROLE, PaymentService.TENANT_ADMIN_ROLE):
             return
         if role == PaymentService.CUSTOMER_ROLE:
             if payment.order is None or payment.order.customer_id != current_user.id:
@@ -295,6 +300,18 @@ class PaymentService:
 
         if order.customer_id != current_user.id:
             raise PermissionError("No puedes pagar la compra de otro cliente.")
+
+        # El identificador de pedido puede manipularse desde el navegador.
+        # Verificar empresa y sucursal antes de crear o reutilizar un cobro.
+        tenant_id = getattr(current_user, "tenant_id", None)
+        if (
+            tenant_id is None
+            or order.tenant_id is None
+            or order.tenant_id != tenant_id
+            or order.branch is None
+            or order.branch.tenant_id != tenant_id
+        ):
+            raise PermissionError("La compra no pertenece a tu empresa.")
 
         if order.status not in {"PENDING_PAYMENT", "PAYMENT_FAILED"}:
             raise ValueError(
@@ -538,6 +555,9 @@ class PaymentService:
         sort_order: str = "desc",
     ) -> dict:
         PaymentService._assert_admin(current_user)
+        tenant_id = getattr(current_user, "tenant_id", None)
+        if tenant_id is None:
+            raise PermissionError("El usuario no tiene una empresa activa.")
         order_customer = aliased(User)
         sale_customer = aliased(User)
         query = (
@@ -546,6 +566,7 @@ class PaymentService:
             .outerjoin(Sale, Payment.sale_id == Sale.id)
             .outerjoin(order_customer, Order.customer_id == order_customer.id)
             .outerjoin(sale_customer, Sale.customer_id == sale_customer.id)
+            .filter(or_(Order.tenant_id == tenant_id, Sale.tenant_id == tenant_id))
         )
 
         if search:
@@ -683,7 +704,8 @@ class PaymentService:
         payment_id: int,
         reason: str,
     ) -> dict:
-        PaymentService._assert_admin(current_user)
+        if PaymentService._role_name(current_user) != PaymentService.ADMIN_ROLE:
+            raise PermissionError("La cancelación de pagos aún no está habilitada para TENANT_ADMIN.")
         payment = (
             db.query(Payment)
             .filter(
@@ -695,6 +717,10 @@ class PaymentService:
         )
         if payment is None:
             raise LookupError("El pago electrónico no existe.")
+        source = payment.order if payment.order_id is not None else payment.sale
+        if (getattr(current_user, "tenant_id", None) is None
+                or source is None or source.tenant_id != current_user.tenant_id):
+            raise LookupError("El pago electrónico no existe en tu empresa.")
         if payment.status not in PaymentService.CANCELLABLE_STATUSES:
             raise ValueError("Solo se pueden cancelar pagos PENDING o PROCESSING.")
 

@@ -1,6 +1,4 @@
 
-from typing import Literal
-
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 from sqlalchemy.orm import Session
 
@@ -11,6 +9,7 @@ from app.schemas.notification import (
     MarkAllReadResponse,
     NotificationListResponse,
     NotificationResponse,
+    NotificationType,
     NotificationSummaryResponse,
 )
 from app.services.notification_service import NotificationService
@@ -27,12 +26,7 @@ def list_my_notifications(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     is_read: bool | None = Query(default=None),
-    notification_type: Literal[
-        "ORDER",
-        "RESERVATION",
-        "PAYMENT",
-        "SYSTEM",
-    ] | None = Query(default=None, alias="type"),
+    notification_type: NotificationType | None = Query(default=None, alias="type"),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_authenticated_user),
 ):

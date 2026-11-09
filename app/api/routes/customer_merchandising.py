@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.database.session import get_db
+from app.api.routes.store_branches import resolve_storefront_tenant
 from app.schemas.customer_merchandising import (
     StoreCollectionListResponse,
     StoreMerchandisingProductsResponse,
@@ -24,10 +25,12 @@ def get_store_promotions(
     page: int = Query(1, ge=1),
     page_size: int = Query(12, ge=1, le=100),
     search: str | None = Query(None, min_length=1, max_length=120),
+    tenant_slug: str | None = Query(default=None, min_length=1, max_length=100),
     db: Session = Depends(get_db),
 ):
     return CustomerMerchandisingService.get_active_promotions(
-        db, page=page, page_size=page_size, search=search
+        db, page=page, page_size=page_size, search=search,
+        tenant_id=resolve_storefront_tenant(db, tenant_slug).id
     )
 
 
@@ -36,10 +39,12 @@ def get_store_collections(
     page: int = Query(1, ge=1),
     page_size: int = Query(12, ge=1, le=100),
     search: str | None = Query(None, min_length=1, max_length=120),
+    tenant_slug: str | None = Query(default=None, min_length=1, max_length=100),
     db: Session = Depends(get_db),
 ):
     return CustomerMerchandisingService.get_active_collections(
-        db, page=page, page_size=page_size, search=search
+        db, page=page, page_size=page_size, search=search,
+        tenant_id=resolve_storefront_tenant(db, tenant_slug).id
     )
 
 
@@ -48,10 +53,12 @@ def get_store_seasons(
     page: int = Query(1, ge=1),
     page_size: int = Query(12, ge=1, le=100),
     search: str | None = Query(None, min_length=1, max_length=120),
+    tenant_slug: str | None = Query(default=None, min_length=1, max_length=100),
     db: Session = Depends(get_db),
 ):
     return CustomerMerchandisingService.get_active_seasons(
-        db, page=page, page_size=page_size, search=search
+        db, page=page, page_size=page_size, search=search,
+        tenant_id=resolve_storefront_tenant(db, tenant_slug).id
     )
 
 

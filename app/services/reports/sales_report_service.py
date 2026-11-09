@@ -34,11 +34,11 @@ class SalesReportService:
     ]
 
     @staticmethod
-    def build(db: Session, filters: SalesReportFilters) -> dict:
+    def build(db: Session, filters: SalesReportFilters, *, tenant_id: int) -> dict:
         customer_search = aliased(User)
 
         stmt = (
-            select(Sale)
+            select(Sale).where(Sale.tenant_id == tenant_id)
             .options(
                 joinedload(Sale.branch),
                 joinedload(Sale.customer),

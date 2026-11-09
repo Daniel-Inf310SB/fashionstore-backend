@@ -9,22 +9,10 @@ from app.core.config import settings
 from app.database.base import Base
 
 # =========================
-# IMPORTAR MODELOS
+# REGISTRAR TODOS LOS MODELOS
 # =========================
 
-from app.models.role_permission import role_permissions
-from app.models.role import Role
-from app.models.permission import Permission
-from app.models.user import User
-from app.models.email_verification_code import EmailVerificationCode
-from app.models.user_device import UserDevice
-from app.models.user_session import UserSession
-from app.models.password_reset_code import PasswordResetCode
-
-from app.models.city import City
-from app.models.branch import Branch
-from app.models.employee_branch import EmployeeBranch
-
+import app.models  # noqa: F401
 
 config = context.config
 

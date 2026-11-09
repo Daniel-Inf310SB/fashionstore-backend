@@ -1,3 +1,4 @@
+from app.dependencies.resource_tenant import require_owned_record
 from fastapi import (
     APIRouter,
     Depends,
@@ -23,6 +24,12 @@ from app.dependencies.users import (
 )
 
 from app.models.user import User
+from app.models.tenant import Tenant
+from app.models.tenant_subscription import TenantSubscription
+from app.models.subscription_plan import SubscriptionPlan
+from app.dependencies.tenant_context import require_tenant_user
+from app.services.subscription_coverage import subscription_valid_now
+from datetime import datetime, timezone
 
 from app.schemas.user import (
     UserCreate,
@@ -102,7 +109,7 @@ def list_users(
         get_db
     ),
 
-    _: User = Depends(
+    current_user: User = Depends(
         require_users_manage
     ),
 ):
@@ -137,8 +144,50 @@ def list_users(
 
             sort_order=
                 sort_order,
+            tenant_id=current_user.tenant_id,
         )
     )
+
+
+# Contexto visual de la empresa autenticada, sin aceptar tenant_id del cliente.
+@router.get("/tenant-context")
+def tenant_context(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_tenant_user),
+):
+    tenant = db.get(Tenant, current_user.tenant_id) if current_user.tenant_id else None
+    if tenant is None:
+        raise HTTPException(status_code=403, detail="El usuario no tiene empresa asignada")
+    return {"id": tenant.id, "name": tenant.name, "slug": tenant.slug}
+
+
+# Funcionalidades contratadas para la empresa autenticada.
+# No aceptar tenant_id desde la petición; siempre procede de la sesión.
+@router.get("/tenant-entitlements")
+def tenant_entitlements(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_tenant_user),
+):
+    tenant = db.get(Tenant, current_user.tenant_id)
+    subscription = (
+        db.query(TenantSubscription)
+        .filter(TenantSubscription.tenant_id == current_user.tenant_id)
+        .one_or_none()
+    )
+    plan = db.get(SubscriptionPlan, subscription.plan_id) if subscription else None
+    allowed = bool(
+        tenant and tenant.is_active and plan and plan.is_active and
+        subscription_valid_now(db, subscription, datetime.now(timezone.utc))
+    )
+    return {
+        "tenant_id": current_user.tenant_id,
+        "subscription_status": subscription.status if subscription else None,
+        "plan_code": plan.code if plan else None,
+        "max_branches": plan.max_branches if plan else None,
+        "max_staff": plan.max_staff if plan else None,
+        "features": list(plan.features or []) if allowed else [],
+        "allowed": allowed,
+    }
 
 
 # =========================================================
@@ -157,10 +206,12 @@ def get_user(
         get_db
     ),
 
-    _: User = Depends(
+    current_user: User = Depends(
         require_users_manage
     ),
 ):
+
+    require_owned_record(db, current_user, User, user_id)
 
     try:
 
@@ -222,6 +273,8 @@ def create_user(
 
                 current_user_id=
                     current_user.id,
+
+                tenant_id=current_user.tenant_id,
 
                 ip_address=(
                     request.client.host
@@ -286,6 +339,8 @@ def update_user(
         require_users_manage
     ),
 ):
+
+    require_owned_record(db, current_user, User, user_id)
 
     try:
 
@@ -372,6 +427,8 @@ def delete_user(
         require_users_manage
     ),
 ):
+
+    require_owned_record(db, current_user, User, user_id)
 
     try:
 

@@ -29,3 +29,18 @@ class CashDeskPaymentResponse(BaseModel):
     external_reference: str | None = None
     paid_at: datetime
     created_at: datetime
+
+class ReservationCheckoutCreate(CashDeskPaymentCreate):
+    """Cobro presencial de una reserva atendida."""
+    pass
+
+class ReservationCheckoutResponse(BaseModel):
+    reservation_id: int
+    reservation_code: str
+    sale_id: int
+    sale_code: str
+    payment_id: int
+    payment_code: str
+    amount: Decimal
+    change_amount: Decimal
+    status: Literal['COMPLETED']

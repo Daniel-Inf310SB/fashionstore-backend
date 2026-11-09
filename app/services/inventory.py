@@ -40,6 +40,7 @@ class InventoryService:
     ADMIN_ROLES = {
         "ADMINISTRADOR",
         "SUPERADMIN",
+        "TENANT_ADMIN",
     }
 
     MANAGER_ROLE = (
@@ -84,6 +85,12 @@ class InventoryService:
         )
 
         if role in InventoryService.ADMIN_ROLES:
+            if current_user.tenant_id is None:
+                raise PermissionError("Se requiere una empresa activa.")
+            if requested_branch_id is not None:
+                branch = db.get(Branch, requested_branch_id)
+                if branch is None or branch.tenant_id != current_user.tenant_id:
+                    raise LookupError("Sucursal no encontrada en tu empresa.")
             return requested_branch_id
 
         if role == InventoryService.MANAGER_ROLE:
@@ -106,6 +113,8 @@ class InventoryService:
                     "de otra sucursal."
                 )
 
+            if current_user.tenant_id is None or branch.tenant_id != current_user.tenant_id:
+                raise PermissionError("La sucursal no pertenece a tu empresa.")
             return branch.id
 
         raise PermissionError(
@@ -151,7 +160,11 @@ class InventoryService:
     @staticmethod
     def _base_query(
         db: Session,
+        current_user: User | None = None,
     ):
+
+        if current_user is None or current_user.tenant_id is None:
+            raise PermissionError("Se requiere un usuario empresarial.")
 
         return (
             db.query(
@@ -174,6 +187,10 @@ class InventoryService:
                 ProductVariant.product_id
                 ==
                 Product.id,
+            )
+            .filter(
+                Branch.tenant_id == current_user.tenant_id,
+                Product.tenant_id == current_user.tenant_id,
             )
             .options(
                 joinedload(
@@ -430,7 +447,7 @@ class InventoryService:
         query = (
             InventoryService
             ._base_query(
-                db
+                db, current_user=current_user
             )
         )
 
@@ -678,7 +695,7 @@ class InventoryService:
         inventory = (
             InventoryService
             ._base_query(
-                db
+                db, current_user=current_user
             )
             .filter(
                 Inventory.id
@@ -787,6 +804,13 @@ class InventoryService:
             )
         )
 
+
+        if (
+            current_user.tenant_id is None
+            or branch.tenant_id != current_user.tenant_id
+            or variant.product.tenant_id != current_user.tenant_id
+        ):
+            raise LookupError("Sucursal o producto no encontrado en tu empresa.")
 
         if not variant.is_active:
 

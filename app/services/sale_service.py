@@ -13,6 +13,8 @@ from sqlalchemy import (
     or_,
 )
 
+from sqlalchemy.exc import IntegrityError
+
 from sqlalchemy.orm import (
     Session,
     joinedload,
@@ -36,6 +38,7 @@ from app.schemas.sale import SaleCreate
 class SaleService:
 
     ADMIN_ROLE = "ADMINISTRADOR"
+    TENANT_ADMIN_ROLE = "TENANT_ADMIN"
     MANAGER_ROLE = "ENCARGADO_SUCURSAL"
     CASHIER_ROLE = "CAJERO"
 
@@ -201,11 +204,11 @@ class SaleService:
             )
         )
 
-        if (
-            role
-            == SaleService.ADMIN_ROLE
-        ):
+        if (getattr(current_user, "tenant_id", None) is None
+                or sale.tenant_id != current_user.tenant_id):
+            raise LookupError("La venta presencial no existe en tu empresa.")
 
+        if role in (SaleService.ADMIN_ROLE, SaleService.TENANT_ADMIN_ROLE):
             return
 
 
@@ -392,6 +395,7 @@ class SaleService:
 
 
         return {
+            "tenant_id": current_user.tenant_id,
             "cashier":
                 current_user,
 
@@ -782,11 +786,28 @@ class SaleService:
     # =====================================================
 
     @staticmethod
+    def _previous_client_sale(db: Session, current_user: User, branch_id: int, data: SaleCreate):
+        if data.client_operation_id is None:
+            return None
+        sale = db.query(Sale).filter(Sale.client_operation_id == str(data.client_operation_id)).first()
+        if sale is None:
+            return None
+        if (sale.tenant_id != current_user.tenant_id or sale.cashier_id != current_user.id
+                or sale.branch_id != branch_id or sale.customer_id != data.customer_id):
+            raise PermissionError("El identificador offline ya pertenece a otra operacion.")
+        expected = sorted((x.product_variant_id, x.quantity) for x in data.items)
+        actual = sorted((x.product_variant_id, x.quantity) for x in sale.items)
+        if expected != actual:
+            raise ValueError("UUID reutilizado con un carrito diferente.")
+        return SaleService._serialize(SaleService._get(db, sale.id))
+
+    @staticmethod
     def create_sale(
         db: Session,
         *,
         current_user: User,
         data: SaleCreate,
+        commit: bool = True,
     ):
 
         if (
@@ -820,6 +841,12 @@ class SaleService:
                 "No puedes vender desde una sucursal distinta a la asignada."
             )
 
+
+        # Idempotencia antes de verificar stock actual: la primera venta puede
+        # haber consumido existencias aunque se haya perdido la respuesta HTTP.
+        existing = SaleService._previous_client_sale(db, current_user, branch_id, data)
+        if existing is not None:
+            return existing
 
         branch = (
             db.query(
@@ -1022,6 +1049,29 @@ class SaleService:
             )
 
 
+            # CU71: no aceptar silenciosamente precios capturados offline
+            # que difieran del precio actual del catálogo central.
+            expected_prices = [
+                line.expected_unit_price
+                for line in data.items
+                if line.product_variant_id == variant_id
+            ]
+            if any(
+                expected is not None
+                and SaleService._money(expected) != price
+                for expected in expected_prices
+            ):
+                captured = next(
+                    SaleService._money(expected)
+                    for expected in expected_prices
+                    if expected is not None and SaleService._money(expected) != price
+                )
+                raise ValueError(
+                    f"Conflicto de precio para {variant.sku}. "
+                    f"Precio offline: {captured}. Precio vigente: {price}. "
+                    "Actualiza el catálogo y revisa la venta antes de reenviarla."
+                )
+
             line_total = (
                 SaleService._money(
                     price
@@ -1052,7 +1102,19 @@ class SaleService:
         )
 
 
+        # Promoción por cantidad CU35: tres o más unidades en una misma venta
+        # reciben 10% sobre el subtotal. La cantidad se obtiene del servidor,
+        # nunca de un descuento enviado por Angular o por la cola offline.
+        total_units = sum(quantities.values())
+        discount_amount = (
+            SaleService._money(subtotal * Decimal("0.10"))
+            if total_units >= 3 else Decimal("0.00")
+        )
+        total_amount = SaleService._money(subtotal - discount_amount)
+
         sale = Sale(
+            tenant_id=current_user.tenant_id,
+            client_operation_id=str(data.client_operation_id) if data.client_operation_id else None,
             sale_code=(
                 f"SALE-"
                 f"{datetime.now(timezone.utc).strftime('%Y%m%d')}-"
@@ -1075,10 +1137,10 @@ class SaleService:
                 subtotal,
 
             discount_amount=
-                Decimal("0.00"),
+                discount_amount,
 
             total_amount=
-                subtotal,
+                total_amount,
         )
 
 
@@ -1159,7 +1221,17 @@ class SaleService:
         )
 
 
-        db.commit()
+        if commit:
+            try:
+                db.commit()
+            except IntegrityError:
+                db.rollback()
+                existing = SaleService._previous_client_sale(db, current_user, branch_id, data)
+                if existing is not None:
+                    return existing
+                raise
+        else:
+            db.flush()
 
 
         return (
@@ -1230,12 +1302,11 @@ class SaleService:
         date_to=None,
     ):
 
-        query = (
-            SaleService._base(
-                db
-            )
+        if getattr(current_user, "tenant_id", None) is None:
+            raise PermissionError("El usuario no tiene una empresa activa.")
+        query = SaleService._base(db).filter(
+            Sale.tenant_id == current_user.tenant_id
         )
-
 
         role = (
             SaleService._role(
@@ -1290,8 +1361,7 @@ class SaleService:
 
 
         elif (
-            role
-            != SaleService.ADMIN_ROLE
+            role not in (SaleService.ADMIN_ROLE, SaleService.TENANT_ADMIN_ROLE)
         ):
 
             raise PermissionError(
@@ -1601,12 +1671,15 @@ class SaleService:
         )
 
 
+        if (getattr(current_user, "tenant_id", None) is None
+                or sale.tenant_id != current_user.tenant_id):
+            raise LookupError("La venta presencial no existe en tu empresa.")
+
         role = (
             SaleService._role(
                 current_user
             )
         )
-
 
         if (
             role

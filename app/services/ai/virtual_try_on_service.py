@@ -6,6 +6,7 @@ from urllib.parse import urlparse
 
 from sqlalchemy.orm import Session, joinedload
 
+from app.models.product import Product
 from app.models.product_variant import ProductVariant
 from app.services.ai.openai_service import OpenAIService
 from app.services.ai.virtual_try_on_prompt import VirtualTryOnPrompt
@@ -29,15 +30,15 @@ class VirtualTryOnService:
     def _validate_garment_url(image_url: str | None) -> str:
         if not image_url or not image_url.strip():
             raise ValueError(
-                "La variante no tiene una imagen propia. "
-                "Sube la imagen de la variante antes de usar el probador virtual."
+                "El producto no tiene una fotografía válida. "
+                "Sube una imagen de la variante o una portada antes de usar el probador virtual."
             )
 
         image_url = image_url.strip()
         parsed = urlparse(image_url)
         if parsed.scheme not in {"http", "https"} or not parsed.netloc:
             raise ValueError(
-                "La imagen de la variante debe estar disponible mediante una URL HTTP/HTTPS accesible."
+                "La imagen de la prenda debe estar disponible mediante una URL HTTP/HTTPS accesible."
             )
 
         return image_url
@@ -73,7 +74,7 @@ class VirtualTryOnService:
         variant = (
             db.query(ProductVariant)
             .options(
-                joinedload(ProductVariant.product),
+                joinedload(ProductVariant.product).joinedload(Product.category),
                 joinedload(ProductVariant.color),
                 joinedload(ProductVariant.size),
             )
@@ -91,12 +92,29 @@ class VirtualTryOnService:
         if product is None or not product.is_active:
             raise ValueError("El producto de la variante no está disponible.")
 
-        garment_image_url = VirtualTryOnService._validate_garment_url(variant.image_url)
+        garment_image_url = VirtualTryOnService._validate_garment_url(
+            variant.image_url or product.cover_image_url
+        )
 
-        # El aspecto de la prenda se define EXCLUSIVAMENTE por la imagen de la variante.
-        # No enviamos nombre, color, talla, categoría ni marca al prompt porque pueden
-        # contradecir lo visible en la fotografía de referencia.
-        prompt = VirtualTryOnPrompt.build()
+        # Preferimos la imagen de variante; si falta, utilizamos la portada
+        # del mismo producto. Esta portada puede representar otro color.
+        #
+        # La categoría se usa únicamente para limitar la REGIÓN del cuerpo
+        # que puede modificarse. Ejemplos:
+        # - Polera/Camisa -> solo parte superior.
+        # - Pantalón/Jean -> solo parte inferior.
+        # - Vestido -> solo la región ocupada por el vestido.
+        #
+        # Nunca usamos nombre/color/talla/categoría para inventar el diseño.
+        category_name = (
+            product.category.name
+            if product.category is not None
+            else None
+        )
+
+        prompt = VirtualTryOnPrompt.build(
+            category_name=category_name,
+        )
 
         generated_bytes, usage = OpenAIService.generate_virtual_try_on(
             prompt=prompt,

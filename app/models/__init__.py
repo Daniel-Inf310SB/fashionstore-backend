@@ -1,4 +1,10 @@
 # =========================================================
+# MULTI-TENANT - ADMINISTRACION DE PLATAFORMA Y EMPRESAS
+# =========================================================
+from app.models.tenant import Tenant
+from app.models.platform_admin import PlatformAdmin
+
+# =========================================================
 # MÓDULO 1 - USUARIOS, ROLES Y PERMISOS
 # =========================================================
 
@@ -11,7 +17,9 @@ from app.models.user_device import UserDevice
 from app.models.user_session import UserSession
 from app.models.password_reset_code import PasswordResetCode
 from app.models.audit_log import AuditLog
-
+from app.models.notification import Notification
+from app.models.notification_push_delivery import NotificationPushDelivery
+from app.models.notification_campaign import NotificationCampaign
 
 # =========================================================
 # MÓDULO 2 - CIUDADES, SUCURSALES Y PERSONAL
@@ -74,6 +82,7 @@ from app.models.reservation_item import ReservationItem
 
 from app.models.shopping_cart import ShoppingCart
 from app.models.cart_item import CartItem
+from app.models.cart_offline_operation import CartOfflineOperation
 
 
 # =========================================================
@@ -105,3 +114,24 @@ from app.models.payment import Payment
 
 from app.models.receipt import Receipt
 from app.models.receipt_item import ReceiptItem
+from app.models.subscription_plan import SubscriptionPlan
+from app.models.tenant_subscription import TenantSubscription
+
+from app.models.subscription_payment import SubscriptionPayment
+
+from app.models.sale_exchange import SaleExchange
+
+from app.models.return_request import ReturnRequest, ReturnItem
+
+from app.models.return_refund import ReturnRefund
+
+from app.models.return_inspection import ReturnInspection
+
+# Campañas configurables del escaparate público
+from app.models.home_banner import HomeBanner
+
+# Devoluciones de ventas presenciales
+from app.models.sale_return import SaleReturn, SaleReturnItem
+
+# Unified post-sale workflow (online orders + in-store sales)
+from app.models.post_sale_case import PostSaleCase, PostSaleCaseItem, PostSaleReplacementItem, PostSaleCaseEvent, PostSaleSettlement

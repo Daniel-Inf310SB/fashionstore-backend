@@ -1,4 +1,6 @@
+from app.core.commercial_errors import commercial_error_headers
 from typing import Literal
+from uuid import UUID
 
 from fastapi import (
     APIRouter,
@@ -20,6 +22,8 @@ from app.dependencies.carts import (
     require_carts_manage,
 )
 
+from app.models.cart_offline_operation import CartOfflineOperation
+
 from app.models.user import (
     User,
 )
@@ -32,11 +36,13 @@ from app.schemas.cart import (
     CartItemQuantityUpdate,
     CartListResponse,
     CartResponse,
+    CartOfflineOperationStatusResponse,
     MyCartResponse,
 )
 
 from app.services.cart_service import (
     CartService,
+    CartOperationConflict,
 )
 
 
@@ -55,6 +61,10 @@ router = APIRouter(
 def handle_cart_error(
     error: Exception,
 ) -> None:
+    if isinstance(error, CartOperationConflict):
+        raise HTTPException(status_code=409, detail=str(error),
+            headers=commercial_error_headers(error)) from error
+
     if isinstance(
         error,
         PermissionError,
@@ -62,6 +72,7 @@ def handle_cart_error(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=str(error),
+            headers=commercial_error_headers(error),
         ) from error
 
     if isinstance(
@@ -71,6 +82,7 @@ def handle_cart_error(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(error),
+            headers=commercial_error_headers(error),
         ) from error
 
     if isinstance(
@@ -80,6 +92,7 @@ def handle_cart_error(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(error),
+            headers=commercial_error_headers(error),
         ) from error
 
     raise error
@@ -116,6 +129,36 @@ def get_my_cart(
         )
     except Exception as error:
         handle_cart_error(error)
+
+
+# =========================================================
+# OFFLINE: COMPROBAR SI EL SERVIDOR YA APLICÓ UNA OPERACIÓN.
+# Consultar antes de volver a intentar si una respuesta se perdió.
+# Solo revela operaciones del usuario autenticado.
+# =========================================================
+@router.get(
+    "/me/offline-operations/{client_operation_id}",
+    response_model=CartOfflineOperationStatusResponse,
+)
+def get_my_cart_offline_operation(
+    client_operation_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_cart_customer),
+):
+    receipt = db.query(CartOfflineOperation).filter(
+        CartOfflineOperation.customer_id == current_user.id,
+        CartOfflineOperation.client_operation_id == str(client_operation_id),
+    ).first()
+    if receipt is None:
+        return {"client_operation_id": str(client_operation_id), "applied": False}
+    return {
+        "client_operation_id": str(client_operation_id),
+        "applied": True,
+        "branch_id": receipt.branch_id,
+        "product_variant_id": receipt.product_variant_id,
+        "quantity": receipt.quantity,
+        "created_at": receipt.created_at,
+    }
 
 
 # =========================================================
@@ -173,6 +216,7 @@ def add_item_to_my_cart(
             branch_id=payload.branch_id,
             product_variant_id=payload.product_variant_id,
             quantity=payload.quantity,
+            client_operation_id=(str(payload.client_operation_id) if payload.client_operation_id else None),
         )
 
         return {
@@ -330,7 +374,8 @@ def list_carts(
         require_carts_manage,
     ),
 ):
-    _ = current_user
+    if current_user.tenant_id is None:
+        raise HTTPException(status_code=403, detail="Usuario sin empresa asignada.")
 
     try:
         return CartService.list_carts(
@@ -341,6 +386,7 @@ def list_carts(
             cart_status=cart_status,
             branch_id=branch_id,
             customer_id=customer_id,
+            tenant_id=current_user.tenant_id,
         )
     except Exception as error:
         handle_cart_error(error)
@@ -366,12 +412,14 @@ def get_cart(
         require_carts_manage,
     ),
 ):
-    _ = current_user
+    if current_user.tenant_id is None:
+        raise HTTPException(status_code=403, detail="Usuario sin empresa asignada.")
 
     try:
         return CartService.get_cart(
             db=db,
             cart_id=cart_id,
+            tenant_id=current_user.tenant_id,
         )
     except Exception as error:
         handle_cart_error(error)

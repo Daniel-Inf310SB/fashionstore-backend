@@ -1,3 +1,5 @@
+from app.dependencies.resource_tenant import require_owned_record
+from app.models.product import Product
 from decimal import Decimal
 from io import BytesIO
 from typing import Literal
@@ -195,6 +197,7 @@ def get_products(
 
             sort_order=
                 sort_order,
+            tenant_id=current_user.tenant_id,
         )
     )
 
@@ -283,6 +286,8 @@ def get_product(
     ),
 ):
 
+    require_owned_record(db, current_user, Product, product_id)
+
     try:
 
         return (
@@ -330,6 +335,8 @@ def update_product(
         require_products_manage
     ),
 ):
+
+    require_owned_record(db, current_user, Product, product_id)
 
     try:
 
@@ -400,6 +407,8 @@ def deactivate_product(
     ),
 ):
 
+    require_owned_record(db, current_user, Product, product_id)
+
     try:
 
         return (
@@ -467,6 +476,8 @@ async def upload_product_cover(
         require_products_manage
     ),
 ):
+
+    require_owned_record(db, current_user, Product, product_id)
 
     # =====================================================
     # PRODUCTO
@@ -691,6 +702,8 @@ def delete_product_cover(
         require_products_manage
     ),
 ):
+
+    require_owned_record(db, current_user, Product, product_id)
 
     try:
 

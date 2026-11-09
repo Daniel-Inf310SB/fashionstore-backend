@@ -72,7 +72,17 @@ class CustomerProductDetailService:
         product_id: int,
 
         branch_id: int | None = None,
+        tenant_id: int | None = None,
     ) -> dict:
+
+        if tenant_id is not None and branch_id is not None:
+            branch = db.query(Branch).filter(
+                Branch.id == branch_id,
+                Branch.tenant_id == tenant_id,
+                Branch.is_active.is_(True),
+            ).first()
+            if branch is None:
+                raise HTTPException(status_code=404, detail="Sucursal no disponible para esta empresa.")
 
         # =================================================
         # PRODUCTO
@@ -104,6 +114,8 @@ class CustomerProductDetailService:
             .filter(
                 Product.id
                 == product_id,
+
+                *([Product.tenant_id == tenant_id] if tenant_id is not None else []),
 
                 Product.is_active.is_(
                     True
@@ -284,6 +296,7 @@ class CustomerProductDetailService:
                     Branch.is_active.is_(
                         True
                     ),
+                    *([Branch.tenant_id == tenant_id] if tenant_id is not None else []),
                 )
             )
 
@@ -497,7 +510,8 @@ class CustomerProductDetailService:
 
         return {
 
-            "id":
+            "public_id": str(product.public_id),
+                    "id":
                 product.id,
 
             "code":
@@ -588,6 +602,7 @@ class CustomerProductDetailService:
         variant_id: int,
 
         city_id: int | None = None,
+        tenant_id: int | None = None,
     ) -> dict:
 
         # =================================================
@@ -601,6 +616,7 @@ class CustomerProductDetailService:
             .filter(
                 Product.id
                 == product_id,
+                *([Product.tenant_id == tenant_id] if tenant_id is not None else []),
 
                 Product.is_active.is_(
                     True
@@ -786,6 +802,7 @@ class CustomerProductDetailService:
                 Branch.is_active.is_(
                     True
                 ),
+                *([Branch.tenant_id == tenant_id] if tenant_id is not None else []),
 
                 City.is_active.is_(
                     True

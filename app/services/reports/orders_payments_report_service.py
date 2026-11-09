@@ -33,11 +33,11 @@ class OrdersPaymentsReportService:
     ]
 
     @staticmethod
-    def build(db: Session, filters: OrdersPaymentsReportFilters) -> dict:
+    def build(db: Session, filters: OrdersPaymentsReportFilters, *, tenant_id: int) -> dict:
         customer_search = aliased(User)
 
         stmt = (
-            select(Order)
+            select(Order).where(Order.tenant_id == tenant_id)
             .options(
                 joinedload(Order.branch),
                 joinedload(Order.customer),

@@ -6,7 +6,7 @@ from app.models.user import User
 
 def _require_admin(current_user: User) -> User:
     role_name = current_user.role.name if current_user.role is not None else None
-    if role_name != "ADMINISTRADOR":
+    if role_name not in ("ADMINISTRADOR", "TENANT_ADMIN"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Esta operación global de pagos está reservada al administrador.",
@@ -35,4 +35,7 @@ def require_payments_admin_view(
 def require_payments_manage(
     current_user: User = Depends(require_permission("payments.manage")),
 ) -> User:
-    return _require_admin(current_user)
+    role_name = current_user.role.name if current_user.role is not None else None
+    if role_name != "ADMINISTRADOR":
+        raise HTTPException(status_code=403, detail="La gestión de pagos aún no está habilitada para TENANT_ADMIN.")
+    return current_user

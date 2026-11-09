@@ -39,6 +39,7 @@ class GlobalInventoryService:
     @staticmethod
     def _filtered_query(
         db: Session,
+        tenant_id: int | None = None,
 
         search: str | None = None,
 
@@ -77,6 +78,9 @@ class GlobalInventoryService:
             )
         )
 
+
+        if tenant_id is not None:
+            query = query.filter(Branch.tenant_id == tenant_id, Product.tenant_id == tenant_id)
 
         # =================================================
         # BÚSQUEDA
@@ -186,6 +190,7 @@ class GlobalInventoryService:
     @staticmethod
     def get_global_inventory(
         db: Session,
+        tenant_id: int | None = None,
 
         page: int = 1,
 
@@ -235,6 +240,7 @@ class GlobalInventoryService:
             GlobalInventoryService
             ._filtered_query(
                 db=db,
+                tenant_id=tenant_id,
 
                 search=search,
 

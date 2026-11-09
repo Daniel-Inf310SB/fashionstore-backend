@@ -33,6 +33,15 @@ from app.services.employee_branch_service import (
 )
 
 
+def _tenant_id(current_user: User) -> int:
+    if current_user.tenant_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Se requiere una empresa para gestionar personal.",
+        )
+    return current_user.tenant_id
+
+
 router = APIRouter(
     prefix="/branch-staff",
     tags=["Branch Staff"],
@@ -83,6 +92,7 @@ def get_assignments(
     return (
         EmployeeBranchService
         .get_assignments(
+                tenant_id=_tenant_id(current_user),
             db=db,
             page=page,
             page_size=page_size,
@@ -134,6 +144,7 @@ def get_available_employees(
     return (
         EmployeeBranchService
         .get_available_employees(
+                tenant_id=_tenant_id(current_user),
             db=db,
             page=page,
             page_size=page_size,
@@ -252,6 +263,7 @@ def get_staff_by_branch(
         return (
             EmployeeBranchService
             .get_branch_staff(
+                tenant_id=_tenant_id(current_user),
                 db=db,
                 branch_id=branch_id,
                 page=page,
@@ -303,6 +315,7 @@ def get_employee_history(
         return (
             EmployeeBranchService
             .get_employee_history(
+                tenant_id=_tenant_id(current_user),
                 db=db,
                 user_id=user_id,
                 page=page,
@@ -346,6 +359,7 @@ def assign_employee(
         return (
             EmployeeBranchService
             .assign_employee(
+                tenant_id=_tenant_id(current_user),
                 db=db,
                 payload=payload,
                 performed_by_user_id=
@@ -395,6 +409,7 @@ def get_assignment(
         return (
             EmployeeBranchService
             .get_assignment(
+                tenant_id=_tenant_id(current_user),
                 db=db,
                 assignment_id=
                     assignment_id,
@@ -437,6 +452,7 @@ def reassign_employee(
         return (
             EmployeeBranchService
             .reassign_employee(
+                tenant_id=_tenant_id(current_user),
                 db=db,
                 assignment_id=
                     assignment_id,
@@ -497,6 +513,7 @@ def remove_employee(
         return (
             EmployeeBranchService
             .remove_employee(
+                tenant_id=_tenant_id(current_user),
                 db=db,
                 assignment_id=
                     assignment_id,

@@ -13,6 +13,13 @@ from pydantic import (
 # =========================
 
 class RegisterRequest(BaseModel):
+    # Empresa elegida en el escaparate publico; se valida en PostgreSQL.
+    tenant_slug: str = Field(
+        min_length=1,
+        max_length=100,
+        pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$",
+    )
+
     first_name: str = Field(
         min_length=2,
         max_length=100,
@@ -98,6 +105,8 @@ class LoginRequest(BaseModel):
 
 class GoogleLoginRequest(BaseModel):
     id_token: str
+    # Contexto comercial opcional, validado en PostgreSQL; obligatorio para cuentas nuevas.
+    tenant_slug: str | None = Field(default=None, max_length=100, pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
     device_id: str | None = None
     device_name: str | None = None
@@ -174,6 +183,11 @@ class UserAuthResponse(BaseModel):
     photo_url: str | None
 
     role: str
+
+    # Contexto autenticado: nunca seleccionado libremente por el navegador.
+    tenant_id: int | None = None
+    tenant_name: str | None = None
+    tenant_slug: str | None = None
 
     permissions: list[str] = Field(
         default_factory=list,

@@ -44,6 +44,9 @@ def create_access_token(
     }
 
     if extra_claims:
+        reserved = {"sub", "type", "iat", "exp"}
+        if reserved.intersection(extra_claims):
+            raise ValueError("No se pueden sobrescribir claims reservados")
         payload.update(extra_claims)
 
     return jwt.encode(

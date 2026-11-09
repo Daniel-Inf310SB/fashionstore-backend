@@ -26,7 +26,7 @@ from app.services.branch_service import BranchService
 
 
 class AIContextService:
-    ADMIN_ROLES = {"ADMINISTRADOR", "SUPERADMIN"}
+    ADMIN_ROLES = {"ADMINISTRADOR", "TENANT_ADMIN"}
     BRANCH_ROLES = {"ENCARGADO_SUCURSAL"}
     EFFECTIVE_ORDER_STATUSES = ["PAID", "PREPARING", "READY_FOR_PICKUP", "SHIPPED", "DELIVERED", "COMPLETED"]
 
@@ -265,13 +265,24 @@ class AIContextService:
     ) -> int | None:
         role = current_user.role.name.strip().upper() if current_user.role else ""
 
+        # El tenant siempre procede del usuario autenticado, nunca del cliente.
+        if current_user.tenant_id is None:
+            raise PermissionError("Tu cuenta no tiene una empresa asignada.")
+
         if role in AIContextService.ADMIN_ROLES:
-            if requested_branch_id is not None and db.get(Branch, requested_branch_id) is None:
-                raise LookupError("Sucursal no encontrada.")
+            if requested_branch_id is not None:
+                branch = db.query(Branch).filter(
+                    Branch.id == requested_branch_id,
+                    Branch.tenant_id == current_user.tenant_id,
+                ).first()
+                if branch is None:
+                    raise LookupError("La sucursal no existe en tu empresa.")
             return requested_branch_id
 
         if role in AIContextService.BRANCH_ROLES:
             branch = BranchService.get_my_branch(db=db, user_id=current_user.id)
+            if branch.tenant_id != current_user.tenant_id:
+                raise PermissionError("No tienes una sucursal autorizada en tu empresa.")
             if requested_branch_id is not None and requested_branch_id != branch.id:
                 raise PermissionError("No puedes generar reportes de otra sucursal.")
             return branch.id
@@ -288,6 +299,7 @@ class AIContextService:
     def _commercial_summary(
         db: Session,
         *,
+        tenant_id: int,
         branch_id: int | None,
         start_dt: datetime,
         end_dt: datetime,
@@ -297,6 +309,7 @@ class AIContextService:
             func.coalesce(func.sum(Sale.total_amount), 0),
             func.coalesce(func.avg(Sale.total_amount), 0),
         ).filter(
+            Sale.tenant_id == tenant_id,
             Sale.status == "PAID",
             Sale.created_at >= start_dt,
             Sale.created_at < end_dt,
@@ -306,6 +319,7 @@ class AIContextService:
             func.coalesce(func.sum(Order.total_amount), 0),
             func.coalesce(func.avg(Order.total_amount), 0),
         ).filter(
+            Order.tenant_id == tenant_id,
             Order.status.in_(AIContextService.EFFECTIVE_ORDER_STATUSES),
             Order.created_at >= start_dt,
             Order.created_at < end_dt,
@@ -342,6 +356,7 @@ class AIContextService:
     def _product_sales_metrics(
         db: Session,
         *,
+        tenant_id: int,
         branch_id: int | None,
         start_dt: datetime,
         end_dt: datetime,
@@ -364,6 +379,8 @@ class AIContextService:
             .join(Product, Product.id == ProductVariant.product_id)
             .join(Category, Category.id == Product.category_id)
             .filter(
+                Sale.tenant_id == tenant_id,
+                Product.tenant_id == tenant_id,
                 Sale.status == "PAID",
                 Sale.created_at >= start_dt,
                 Sale.created_at < end_dt,
@@ -386,6 +403,8 @@ class AIContextService:
             .join(Product, Product.id == ProductVariant.product_id)
             .join(Category, Category.id == Product.category_id)
             .filter(
+                Order.tenant_id == tenant_id,
+                Product.tenant_id == tenant_id,
                 Order.status.in_(AIContextService.EFFECTIVE_ORDER_STATUSES),
                 Order.created_at >= start_dt,
                 Order.created_at < end_dt,
@@ -445,6 +464,7 @@ class AIContextService:
     def _inventory_details(
         db: Session,
         *,
+        tenant_id: int,
         branch_id: int | None,
         sold_variant_ids: set[int],
         limit: int,
@@ -456,7 +476,9 @@ class AIContextService:
             func.count(Inventory.id),
             func.coalesce(func.sum(available_expr), 0),
             func.coalesce(func.sum(low_case), 0),
-        ).filter(Inventory.is_active.is_(True))
+        ).join(Branch, Branch.id == Inventory.branch_id).filter(
+            Inventory.is_active.is_(True), Branch.tenant_id == tenant_id,
+        )
         if branch_id is not None:
             summary_query = summary_query.filter(Inventory.branch_id == branch_id)
         summary = summary_query.one()
@@ -471,11 +493,13 @@ class AIContextService:
                 available_expr.label("available"),
                 Inventory.reorder_point.label("reorder_point"),
             )
+            .join(Branch, Branch.id == Inventory.branch_id)
             .join(ProductVariant, ProductVariant.id == Inventory.product_variant_id)
             .join(Product, Product.id == ProductVariant.product_id)
             .join(Size, Size.id == ProductVariant.size_id)
             .join(Color, Color.id == ProductVariant.color_id)
-            .filter(Inventory.is_active.is_(True), Product.is_active.is_(True), ProductVariant.is_active.is_(True))
+            .filter(Inventory.is_active.is_(True), Branch.tenant_id == tenant_id,
+                    Product.tenant_id == tenant_id, Product.is_active.is_(True), ProductVariant.is_active.is_(True))
         )
         if branch_id is not None:
             details_query = details_query.filter(Inventory.branch_id == branch_id)
@@ -534,11 +558,13 @@ class AIContextService:
     def _reservation_metrics(
         db: Session,
         *,
+        tenant_id: int,
         branch_id: int | None,
         start_dt: datetime,
         end_dt: datetime,
     ) -> dict:
         base = db.query(Reservation).filter(
+            Reservation.tenant_id == tenant_id,
             Reservation.created_at >= start_dt,
             Reservation.created_at < end_dt,
         )
@@ -563,6 +589,7 @@ class AIContextService:
     def report_context(
         db: Session,
         *,
+        tenant_id: int,
         branch_id: int | None,
         start_date: date | None,
         end_date: date | None,
@@ -575,6 +602,7 @@ class AIContextService:
         start_dt, end_dt = AIContextService._period_bounds(resolved_start, resolved_end)
         current_summary = AIContextService._commercial_summary(
             db,
+            tenant_id=tenant_id,
             branch_id=branch_id,
             start_dt=start_dt,
             end_dt=end_dt,
@@ -586,6 +614,7 @@ class AIContextService:
         previous_start_dt, previous_end_dt = AIContextService._period_bounds(previous_start, previous_end)
         previous_summary = AIContextService._commercial_summary(
             db,
+            tenant_id=tenant_id,
             branch_id=branch_id,
             start_dt=previous_start_dt,
             end_dt=previous_end_dt,
@@ -600,6 +629,7 @@ class AIContextService:
 
         top_products, sales_by_category = AIContextService._product_sales_metrics(
             db,
+            tenant_id=tenant_id,
             branch_id=branch_id,
             start_dt=start_dt,
             end_dt=end_dt,
@@ -611,11 +641,14 @@ class AIContextService:
         sold_sale_ids = db.query(ProductVariant.id).join(Product, Product.id == ProductVariant.product_id).join(
             SaleItem, SaleItem.product_variant_id == ProductVariant.id
         ).join(Sale, Sale.id == SaleItem.sale_id).filter(
+            Sale.tenant_id == tenant_id, Product.tenant_id == tenant_id,
             Sale.status == "PAID", Sale.created_at >= start_dt, Sale.created_at < end_dt
         )
         sold_order_ids = db.query(ProductVariant.id).join(Product, Product.id == ProductVariant.product_id).join(
             OrderItem, OrderItem.product_variant_id == ProductVariant.id
         ).join(Order, Order.id == OrderItem.order_id).filter(
+            Order.tenant_id == tenant_id,
+            Product.tenant_id == tenant_id,
             Order.status.in_(AIContextService.EFFECTIVE_ORDER_STATUSES),
             Order.created_at >= start_dt,
             Order.created_at < end_dt,
@@ -628,12 +661,14 @@ class AIContextService:
 
         inventory_summary, low_stock, zero_rotation = AIContextService._inventory_details(
             db,
+            tenant_id=tenant_id,
             branch_id=branch_id,
             sold_variant_ids=sold_variant_ids,
             limit=detail_limit,
         )
         reservations = AIContextService._reservation_metrics(
             db,
+            tenant_id=tenant_id,
             branch_id=branch_id,
             start_dt=start_dt,
             end_dt=end_dt,
@@ -641,7 +676,9 @@ class AIContextService:
 
         branch_name = None
         if branch_id is not None:
-            branch = db.get(Branch, branch_id)
+            branch = db.query(Branch).filter(
+                Branch.id == branch_id, Branch.tenant_id == tenant_id,
+            ).first()
             branch_name = branch.name if branch else None
 
         data = {

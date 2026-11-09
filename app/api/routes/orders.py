@@ -149,6 +149,7 @@ def list_my_orders(
         "PENDING_PAYMENT", "PAYMENT_FAILED", "PAID", "PREPARING", "READY_FOR_PICKUP",
         "SHIPPED", "DELIVERED", "COMPLETED", "CANCELLED", "REFUNDED",
     ] | None = Query(default=None, alias="status"),
+    payment_method: Literal["CASH", "CARD", "QR", "TRANSFER"] | None = Query(default=None),
     date_from: datetime | None = Query(default=None),
     date_to: datetime | None = Query(default=None),
     db: Session = Depends(get_db),
@@ -165,6 +166,7 @@ def list_my_orders(
             page=page,
             page_size=page_size,
             order_status=order_status,
+            payment_method=payment_method,
             date_from=date_from,
             date_to=date_to,
         )
@@ -200,6 +202,10 @@ def get_order(
     current_user: User = Depends(require_purchases_view),
 ):
     try:
+        # Autorizar ANTES de cualquier actualización defensiva por expiración.
+        # El vencimiento puede modificar stock, pagos y auditoría.
+        OrderService.get_order(db=db, current_user=current_user, order_id=order_id)
+
         # La comprobación de expiración es defensiva. Si una orden histórica
         # tiene una inconsistencia de reserva, no impedimos consultar su
         # detalle: el scheduler/servicio la registrará como omitida.

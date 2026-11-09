@@ -2,10 +2,20 @@ from datetime import datetime
 from decimal import Decimal
 from sqlalchemy import Boolean, DateTime, Numeric, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import ForeignKey as TenantForeignKey
 from app.database.base import Base
 
 class Promotion(Base):
     __tablename__ = "promotions"
+    tenant = relationship("Tenant")
+
+    # Empresa propietaria del registro.
+    tenant_id: Mapped[int | None] = mapped_column(
+        TenantForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+    )
+
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
     description: Mapped[str | None] = mapped_column(String(255), nullable=True)

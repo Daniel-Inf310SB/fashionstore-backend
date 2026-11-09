@@ -133,6 +133,7 @@ class AIService:
 
         metrics, start_date, end_date = AIContextService.report_context(
             db,
+            tenant_id=current_user.tenant_id,
             branch_id=branch_id,
             start_date=data.start_date,
             end_date=data.end_date,

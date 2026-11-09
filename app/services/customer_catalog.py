@@ -88,6 +88,7 @@ class CustomerCatalogService:
     @staticmethod
     def get_catalog(
         db: Session,
+        tenant_id: int | None = None,
 
         page: int = 1,
 
@@ -184,6 +185,9 @@ class CustomerCatalogService:
         )
 
 
+        if tenant_id is not None:
+            query = query.filter(Product.tenant_id == tenant_id)
+
         # =================================================
         # AL MENOS UNA VARIANTE ACTIVA
         # =================================================
@@ -269,6 +273,11 @@ class CustomerCatalogService:
                     Product.description.ilike(
                         search_value
                     ),
+
+                    # Las categorías y públicos ya están unidos a la consulta.
+                    # Permite buscar "abrigos", "calzado", "mujer", etc.
+                    Category.name.ilike(search_value),
+                    Audience.name.ilike(search_value),
 
                     variant_search_exists,
                 )
@@ -1103,6 +1112,7 @@ class CustomerCatalogService:
             items.append(
                 {
 
+                    "public_id": str(product.public_id),
                     "id":
                         product.id,
 

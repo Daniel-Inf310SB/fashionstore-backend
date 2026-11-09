@@ -68,6 +68,7 @@ class CustomerCatalogProductResponse(
     BaseModel
 ):
     id: int
+    public_id: str
 
     code: str
 

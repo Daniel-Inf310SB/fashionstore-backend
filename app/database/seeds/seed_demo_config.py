@@ -1,25 +1,23 @@
-from __future__ import annotations
+"""Plan de datos Multi-Tenant. Cantidades objetivo, no datos ya generados."""
+from dataclasses import dataclass
 
-from datetime import date
+@dataclass(frozen=True)
+class TenantPlan:
+    slug: str
+    name: str
+    branches: int
+    managers_per_branch: int
+    cashiers_per_branch: int
+    customers: int
+    products: int
+    variants_per_product: int
+    suppliers: int
+    sales: int
+    orders: int
 
-# Dataset de demostración 2026: compacto, realista e idempotente.
-SEED_YEAR = 2026
-SEED_UNTIL = date(2026, 9, 18)
-
-# Catálogo
-PRODUCT_COUNT = 200
-VARIANTS_PER_PRODUCT = 3
-
-# Clientes
-CUSTOMER_COUNT = 10
-SEED_PASSWORD = "Cliente123*"
-
-# Comercio histórico
-# Se distribuyen entre todas las sucursales con personal activo.
-SALES_TOTAL = 180
-ORDERS_TOTAL = 90
-RESERVATIONS_TOTAL = 54
-
-# Carritos (máximo 1 por cliente en este seed)
-ACTIVE_CARTS = 6
-ABANDONED_CARTS = 3
+FASHIONSTORE = TenantPlan('fashionstore', 'FashionStore', 27, 1, 2, 30, 120, 3, 20, 180, 90)
+URBAN_STYLE = TenantPlan('urban-style-demo', 'Urban Style Demo', 2, 1, 2, 5, 12, 3, 3, 10, 5)
+TECHNOVA = TenantPlan('technova-store', 'TechNova Store', 1, 1, 2, 5, 10, 3, 2, 10, 5)
+DEMO_TENANTS = (FASHIONSTORE, URBAN_STYLE, TECHNOVA)
+EXPECTED_DATABASE = 'fashionstore_db'
+EXPECTED_ALEMBIC_HEAD = "a93b20261102"

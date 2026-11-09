@@ -43,7 +43,12 @@ class OrderService:
 
     @staticmethod
     def _role_name(user: User) -> str | None:
-        return user.role.name if user.role is not None else None
+        if user.role is None:
+            return None
+        # El rol SaaS tiene la misma función operativa que el administrador
+        # anterior, pero NUNCA implica acceso a otras empresas.
+        return (OrderService.ADMIN_ROLE if user.role.name == "TENANT_ADMIN"
+                else user.role.name)
 
     @staticmethod
     def _allowed_transitions(order: Order) -> list[str]:
@@ -132,6 +137,12 @@ class OrderService:
         current_user: User,
     ) -> None:
         role = OrderService._role_name(current_user)
+
+        # Comprobación obligatoria para TODOS los roles, incluso clientes.
+        # No confiar en los identificadores enviados desde Angular.
+        if (current_user.tenant_id is None or order.branch is None
+                or order.branch.tenant_id != current_user.tenant_id):
+            raise LookupError("La compra digital no existe en tu empresa.")
 
         if role == OrderService.ADMIN_ROLE:
             return
@@ -261,6 +272,20 @@ class OrderService:
                 "Solo un cliente puede realizar una compra digital."
             )
 
+        # Serializar la conversion del carrito para evitar pedidos duplicados
+        # por solicitudes simultaneas. Bloqueamos solo la fila del carrito.
+        locked_cart_id = (
+            db.query(ShoppingCart.id)
+            .filter(
+                ShoppingCart.id == data.cart_id,
+                ShoppingCart.customer_id == current_user.id,
+            )
+            .with_for_update()
+            .first()
+        )
+        if locked_cart_id is None:
+            raise LookupError("El carrito no existe o no pertenece al cliente.")
+
         cart = (
             db.query(ShoppingCart)
             .options(
@@ -312,6 +337,9 @@ class OrderService:
             raise ValueError(
                 "La sucursal seleccionada no existe o está inactiva."
             )
+        if current_user.tenant_id is None or branch.tenant_id != current_user.tenant_id:
+            raise PermissionError("El carrito no pertenece a tu empresa.")
+
 
         # Bloqueamos las filas de inventario que participarán en la compra.
         variant_ids = [item.product_variant_id for item in cart.items]
@@ -357,6 +385,9 @@ class OrderService:
                 raise ValueError(
                     "Uno de los productos del carrito ya no está disponible."
                 )
+            if variant.product.tenant_id != current_user.tenant_id:
+                raise PermissionError("El carrito contiene una prenda de otra empresa.")
+
 
             inventory = inventory_by_variant.get(
                 cart_item.product_variant_id
@@ -413,6 +444,7 @@ class OrderService:
 
         try:
             order = Order(
+                tenant_id=current_user.tenant_id,
                 order_code=OrderService._generate_order_code(),
                 customer_id=current_user.id,
                 branch_id=cart.branch_id,
@@ -523,6 +555,9 @@ class OrderService:
         )
 
         role = OrderService._role_name(current_user)
+        if current_user.tenant_id is None:
+            raise PermissionError("Se requiere una cuenta empresarial.")
+        query = query.filter(Branch.tenant_id == current_user.tenant_id)
 
         # Alcance por rol.
         if role == OrderService.CUSTOMER_ROLE:
@@ -653,6 +688,8 @@ class OrderService:
                 "Tu rol no puede consultar el resumen operativo de pedidos."
             )
 
+        if current_user.tenant_id is None:
+            raise PermissionError("Se requiere una cuenta empresarial.")
         effective_branch_id = branch_id
         branch_name = None
 
@@ -667,12 +704,15 @@ class OrderService:
                 )
             effective_branch_id = manager_branch_id
 
-        query = db.query(Order)
+        query = db.query(Order).join(Branch, Order.branch_id == Branch.id).filter(
+            Branch.tenant_id == current_user.tenant_id
+        )
 
         if effective_branch_id is not None:
             branch = (
                 db.query(Branch)
-                .filter(Branch.id == effective_branch_id)
+                .filter(Branch.id == effective_branch_id,
+                        Branch.tenant_id == current_user.tenant_id)
                 .first()
             )
             if branch is None:
@@ -749,6 +789,7 @@ class OrderService:
         page: int = 1,
         page_size: int = 10,
         order_status: str | None = None,
+        payment_method: str | None = None,
         date_from: datetime | None = None,
         date_to: datetime | None = None,
     ) -> dict:
@@ -763,6 +804,7 @@ class OrderService:
             page=page,
             page_size=page_size,
             order_status=order_status,
+            payment_method=payment_method,
             date_from=date_from,
             date_to=date_to,
         )
@@ -830,6 +872,10 @@ class OrderService:
             raise ValueError("El carrito no se encuentra activo.")
         if cart.branch_id is None or cart.branch is None:
             raise ValueError("Debes seleccionar una sucursal antes de pagar.")
+        if current_user.tenant_id is None or cart.branch.tenant_id != current_user.tenant_id:
+            raise PermissionError("El carrito no pertenece a tu empresa.")
+        if not cart.branch.is_active:
+            raise ValueError("La sucursal seleccionada no está activa.")
         if not cart.items:
             raise ValueError("El carrito está vacío.")
 
@@ -865,6 +911,8 @@ class OrderService:
                 raise ValueError("Una variante del carrito ya no está disponible.")
             if variant.product is None or not variant.product.is_active:
                 raise ValueError("Un producto del carrito ya no está disponible.")
+            if variant.product.tenant_id != current_user.tenant_id:
+                raise PermissionError("El carrito contiene una prenda de otra empresa.")
 
             inventory = inventory_by_variant.get(cart_item.product_variant_id)
             if inventory is None:

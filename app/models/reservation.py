@@ -36,6 +36,15 @@ class Reservation(Base):
         ),
     )
 
+    tenant = relationship("Tenant")
+
+    # Empresa propietaria del registro.
+    tenant_id: Mapped[int | None] = mapped_column(
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+    )
+
     id: Mapped[int] = mapped_column(
         primary_key=True,
         index=True,
@@ -46,6 +55,14 @@ class Reservation(Base):
         unique=True,
         nullable=False,
         index=True,
+    )
+
+    # CU70: idempotencia de reservas originadas en modo offline.
+    client_operation_id: Mapped[str | None] = mapped_column(
+        String(36), unique=True, nullable=True, index=True,
+    )
+    client_operation_hash: Mapped[str | None] = mapped_column(
+        String(64), nullable=True,
     )
 
     customer_id: Mapped[int] = mapped_column(

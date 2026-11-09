@@ -13,6 +13,63 @@ class ReportExportService:
         "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     }
 
+    LABELS = {
+        "date_from": "Desde", "date_to": "Hasta", "min_total": "Monto mínimo", "max_total": "Monto máximo",
+        "sales_count": "Ventas", "units_sold": "Unidades vendidas", "gross_total": "Total vendido",
+        "discount_total": "Descuentos", "average_ticket": "Ticket promedio", "payment_methods": "Métodos de pago",
+        "variants_count": "Variantes", "stock_total": "Stock físico", "reserved_total": "Reservado",
+        "available_total": "Disponible", "low_stock_count": "Stock bajo", "out_of_stock_count": "Agotados",
+        "branch_id": "Sucursal", "customer_id": "Cliente", "product_id": "Producto", "category_id": "Categoría",
+        "payment_method": "Método de pago", "status": "Estado", "search": "Búsqueda",
+        "stock_state": "Estado de stock", "orders_count": "Cantidad de compras", "units": "Unidades",
+        "orders_total": "Total de compras (Bs)", "approved_payments_total": "Pagos aprobados (Bs)",
+        "by_order_status": "Por estado de compra", "by_payment_status": "Por estado de pago",
+        "reservations_count": "Cantidad de reservas", "units_reserved": "Unidades reservadas",
+        "estimated_total": "Total estimado (Bs)", "by_status": "Por estado",
+        "order_status": "Estado de compra", "payment_status": "Estado de pago",
+        "payment_statuses": "Estados de pago", "delivery_type": "Tipo de entrega",
+        "groups_count": "Grupos analizados", "analysis_total": "Importe analizado (Bs)",
+        "analysis_kind": "Tipo de análisis", "sales_count": "Ventas",
+
+    }
+
+    @staticmethod
+    def _label(key: str) -> str:
+        return ReportExportService.LABELS.get(key, key.replace("_", " ").capitalize())
+
+    STATUS_LABELS = {
+        "COMPLETED": "Completada", "PENDING_PAYMENT": "Pendiente de pago", "APPROVED": "Aprobado",
+        "PENDING": "Pendiente", "PAID": "Pagada", "PROCESSING": "Procesando",
+        "PAYMENT_FAILED": "Pago fallido", "PREPARING": "Preparando", "SHIPPED": "Enviada",
+        "DELIVERED": "Entregada", "CANCELLED": "Cancelada", "REFUNDED": "Reembolsada",
+        "REJECTED": "Rechazado", "FAILED": "Fallido", "EXPIRED": "Expirada",
+        "PICKUP": "Recojo", "DELIVERY": "Envío", "IN_STOCK": "Disponible",
+        "LOW_STOCK": "Stock bajo", "OUT_OF_STOCK": "Agotado", "CONFIRMED": "Confirmada",
+        "READY": "Lista", "ATTENDED": "Atendida", "RESERVED": "Reservada",
+    }
+
+    @staticmethod
+    def _readable(value: Any) -> str:
+        if isinstance(value, str):
+            return ReportExportService.STATUS_LABELS.get(value, value)
+        return ReportExportService._value(value)
+
+    @staticmethod
+    def _display_cell(value: Any, key: str) -> str:
+        if value is None:
+            return "—"
+        if key in {"date", "expires_at", "created_at", "updated_at"}:
+            from datetime import datetime
+            try:
+                parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+                return parsed.strftime("%d/%m/%Y %H:%M")
+            except (ValueError, TypeError):
+                return str(value)
+        if key in {"order_status", "status", "payment_status", "payment_statuses", "delivery_type", "stock_state", "item_status"}:
+            if isinstance(value, str):
+                return ", ".join(ReportExportService._readable(part.strip()) for part in value.split(","))
+        return ReportExportService._value(value)
+
     @staticmethod
     def _value(value: Any) -> str:
         if value is None:
@@ -28,16 +85,16 @@ class ReportExportService:
         filters = report.get("filters") or {}
         if not filters:
             return [("Filtros", "Sin filtros")]
-        return [(key.replace("_", " ").title(), ReportExportService._value(value)) for key, value in filters.items()]
+        return [(ReportExportService._label(key), ReportExportService._readable(value)) for key, value in filters.items()]
 
     @staticmethod
     def _summary_lines(report: dict[str, Any]) -> list[tuple[str, str]]:
         summary = report.get("summary") or {}
         rows: list[tuple[str, str]] = []
         for key, value in summary.items():
-            label = key.replace("_", " ").title()
+            label = ReportExportService._label(key)
             if isinstance(value, dict):
-                text = ", ".join(f"{k}: {v}" for k, v in value.items()) or "—"
+                text = ", ".join(f"{ReportExportService._readable(k)}: {v}" for k, v in value.items()) or "—"
             else:
                 text = ReportExportService._value(value)
             rows.append((label, text))
@@ -89,13 +146,14 @@ class ReportExportService:
             leading=22,
             spaceAfter=8,
         )
-        small = ParagraphStyle("ReportSmall", parent=styles["BodyText"], fontSize=7.5, leading=9)
+        small = ParagraphStyle("ReportSmall", parent=styles["BodyText"], fontSize=6.2, leading=7.5)
+        header_small = ParagraphStyle("ReportHeaderSmall", parent=small, textColor=colors.white)
         meta = ParagraphStyle("ReportMeta", parent=styles["BodyText"], fontSize=8.5, leading=10)
 
         story: list[Any] = [
             Paragraph("FashionStore", title_style),
             Paragraph(escape(report["title"]), styles["Heading2"]),
-            Paragraph(f"Generado: {escape(str(report['generated_at']))}", meta),
+            Paragraph(f"Generado: {escape(ReportExportService._display_cell(report['generated_at'], "created_at"))}", meta),
             Spacer(1, 5 * mm),
         ]
 
@@ -115,7 +173,7 @@ class ReportExportService:
         summary_data = [["Resumen", "Valor"]] + [list(row) for row in ReportExportService._summary_lines(report)]
         summary_table = Table(summary_data, colWidths=[75 * mm, 180 * mm], repeatRows=1)
         summary_table.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#E91E63")),
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#4338CA")),
             ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
             ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
             ("FONTSIZE", (0, 0), (-1, -1), 8),
@@ -125,11 +183,11 @@ class ReportExportService:
         story += [summary_table, Spacer(1, 6 * mm)]
 
         columns = report.get("columns") or []
-        header = [Paragraph(f"<b>{escape(col['label'])}</b>", small) for col in columns]
+        header = [Paragraph(f"<b>{escape(col['label'])}</b>", header_small) for col in columns]
         data: list[list[Any]] = [header]
         for row in report.get("rows") or []:
             data.append([
-                Paragraph(escape(ReportExportService._value(row.get(col["key"]))), small)
+                Paragraph(escape(ReportExportService._display_cell(row.get(col["key"]), col["key"])), small)
                 for col in columns
             ])
 
@@ -137,8 +195,14 @@ class ReportExportService:
             data.append([Paragraph("Sin resultados", small)] + [""] * max(0, len(columns) - 1))
 
         page_width = landscape(A4)[0] - 20 * mm
-        col_width = page_width / max(1, len(columns))
-        table = Table(data, colWidths=[col_width] * len(columns), repeatRows=1)
+        if report.get("report_key") == "orders-payments" and len(columns) == 12:
+            # Priorizar producto, sucursal y estado; columnas numéricas son más estrechas.
+            weights = [1.3, 1.25, 1.5, 1.15, 1.15, .75, 1.7, .55, .8, 1.0, .95, .95]
+            total_weight = sum(weights)
+            widths = [page_width * weight / total_weight for weight in weights]
+        else:
+            widths = [page_width / max(1, len(columns))] * len(columns)
+        table = Table(data, colWidths=widths, repeatRows=1)
         table.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#111111")),
             ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
@@ -171,7 +235,7 @@ class ReportExportService:
         ws["A1"].font = Font(size=18, bold=True)
         ws["A2"] = report["title"]
         ws["A2"].font = Font(size=14, bold=True)
-        ws["A3"] = f"Generado: {report['generated_at']}"
+        ws["A3"] = f"Generado: {ReportExportService._display_cell(report['generated_at'], 'created_at')}"
 
         row_index = 5
         ws.cell(row=row_index, column=1, value="FILTROS APLICADOS").font = Font(bold=True)
@@ -203,7 +267,12 @@ class ReportExportService:
             row_index += 1
             for col_index, column in enumerate(columns, start=1):
                 value = data_row.get(column["key"])
-                cell = ws.cell(row=row_index, column=col_index, value=value)
+                display = ReportExportService._display_cell(value, column["key"])
+                # Preserve numeric cells so Excel can sum/filter monetary amounts.
+                formatted = value if isinstance(value, (int, float)) and not isinstance(value, bool) else display
+                cell = ws.cell(row=row_index, column=col_index, value=formatted)
+                if isinstance(formatted, float):
+                    cell.number_format = '#,##0.00'
                 cell.alignment = Alignment(vertical="top", wrap_text=True)
 
         ws.freeze_panes = f"A{table_header_row + 1}"
@@ -226,7 +295,8 @@ class ReportExportService:
     def to_word(report: dict[str, Any]) -> bytes:
         try:
             from docx import Document
-            from docx.enum.section import WD_ORIENT
+            from docx.enum.section import WD_ORIENT, WD_SECTION_START
+            from docx.enum.table import WD_TABLE_ALIGNMENT, WD_CELL_VERTICAL_ALIGNMENT
             from docx.enum.text import WD_ALIGN_PARAGRAPH
             from docx.shared import Inches, Pt
         except ImportError as exc:
@@ -236,6 +306,10 @@ class ReportExportService:
         section = doc.sections[0]
         section.orientation = WD_ORIENT.LANDSCAPE
         section.page_width, section.page_height = section.page_height, section.page_width
+        # Wider paper for reports with twelve data columns; prevents broken identifiers.
+        if len(report.get("columns") or []) >= 10:
+            section.page_width = Inches(16.54)
+            section.page_height = Inches(11.69)
         section.top_margin = Inches(0.45)
         section.bottom_margin = Inches(0.45)
         section.left_margin = Inches(0.45)
@@ -249,7 +323,7 @@ class ReportExportService:
 
         heading = doc.add_heading(report["title"], level=1)
         heading.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        doc.add_paragraph(f"Generado: {report['generated_at']}")
+        doc.add_paragraph(f"Generado: {ReportExportService._display_cell(report['generated_at'], 'created_at')}")
 
         doc.add_heading("Filtros aplicados", level=2)
         filters_table = doc.add_table(rows=1, cols=2)
@@ -275,13 +349,25 @@ class ReportExportService:
         columns = report.get("columns") or []
         detail = doc.add_table(rows=1, cols=max(1, len(columns)))
         detail.style = "Table Grid"
+        detail.alignment = WD_TABLE_ALIGNMENT.CENTER
+        detail.autofit = False
+        if columns:
+            if report.get("report_key") == "orders-payments" and len(columns) == 12:
+                widths = [1.30, 1.15, 1.45, 1.30, 1.35, .8, 1.60, .72, 1.05, 1.15, 1.00, 1.00]
+            else:
+                usable = section.page_width.inches - section.left_margin.inches - section.right_margin.inches
+                widths = [usable / len(columns)] * len(columns)
+            for index, width in enumerate(widths):
+                detail.columns[index].width = Inches(width)
         if columns:
             for index, column in enumerate(columns):
                 detail.rows[0].cells[index].text = column["label"]
+                detail.rows[0].cells[index].width = Inches(widths[index])
             for data_row in report.get("rows") or []:
                 cells = detail.add_row().cells
                 for index, column in enumerate(columns):
-                    cells[index].text = ReportExportService._value(data_row.get(column["key"]))
+                    cells[index].text = ReportExportService._display_cell(data_row.get(column["key"]), column["key"])
+                    cells[index].width = Inches(widths[index])
         else:
             detail.rows[0].cells[0].text = "Sin datos"
 
@@ -290,7 +376,8 @@ class ReportExportService:
                 for cell in row.cells:
                     for paragraph in cell.paragraphs:
                         for run in paragraph.runs:
-                            run.font.size = Pt(7.5)
+                            run.font.size = Pt(7.5 if table is not detail else 7)
+                    cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
 
         output = BytesIO()
         doc.save(output)

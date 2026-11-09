@@ -13,6 +13,7 @@ from app.dependencies.payments import (
     require_payments_view,
 )
 from app.models.user import User
+from app.models.order import Order
 from app.schemas.payment import (
     PaymentCancelRequest,
     PaymentListResponse,
@@ -52,6 +53,18 @@ def create_stripe_payment_intent(
     current_user: User = Depends(require_payments_process),
 ):
     try:
+        # No ejecutar efectos de vencimiento sobre pedidos de otra empresa
+        # o cliente. Validar antes de llamar al proceso con efectos en BD.
+        order = db.query(Order).filter(Order.id == data.order_id).first()
+        if order is None or current_user.tenant_id is None or (
+            order.tenant_id != current_user.tenant_id
+        ) or order.branch is None or (
+            order.branch.tenant_id != current_user.tenant_id
+        ):
+            raise LookupError("La compra digital no existe en tu empresa.")
+        if order.customer_id != current_user.id:
+            raise PermissionError("No puedes pagar la compra de otro cliente.")
+
         ExpirationService.expire_order_if_needed(
             db,
             order_id=data.order_id,
@@ -165,6 +178,30 @@ def get_payment_status(
     try:
         return PaymentService.get_payment_status(
             db=db, current_user=current_user, payment_id=payment_id
+        )
+    except Exception as error:
+        handle_payment_error(error)
+
+
+@router.post("/{payment_id}/reconcile", response_model=PaymentStatusResponse)
+def reconcile_my_stripe_payment(
+    payment_id: int = Path(..., ge=1),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_payments_view),
+):
+    """Consulta Stripe de forma segura. Nunca confía en una confirmación móvil."""
+    try:
+        payment = PaymentService._get_payment(db, payment_id)
+        PaymentService._validate_payment_access(payment=payment, current_user=current_user)
+        if payment.provider != "STRIPE" or payment.order_id is None:
+            raise ValueError("Solo se admiten pagos de compras procesados con Stripe.")
+        # Liberar la sesión lectora antes de llamar a Stripe y bloquear filas.
+        db.rollback()
+        from app.jobs.stripe_reconciliation_jobs import reconcile_one_stripe_payment
+        reconcile_one_stripe_payment(payment_id)
+        db.expire_all()
+        return PaymentService.get_payment_status(
+            db=db, current_user=current_user, payment_id=payment_id,
         )
     except Exception as error:
         handle_payment_error(error)

@@ -23,6 +23,7 @@ from sqlalchemy.orm import (
     joinedload,
 )
 
+from app.core.reservation_idempotency import reservation_operation_fingerprint
 from app.core.config import settings
 from app.models.audit_log import AuditLog
 
@@ -213,7 +214,7 @@ class ReservationService:
             )
         )
 
-        if role in ReservationService.ADMIN_ROLES:
+        if role in ReservationService.ADMIN_ROLES or role == "TENANT_ADMIN":
             return requested_branch_id
 
         if role == ReservationService.MANAGER_ROLE:
@@ -358,7 +359,12 @@ class ReservationService:
             )
         )
 
-        if role in ReservationService.ADMIN_ROLES:
+        if current_user.tenant_id is None or (
+            reservation.tenant_id != current_user.tenant_id
+        ):
+            raise LookupError("La reserva no existe en tu empresa.")
+
+        if role in ReservationService.ADMIN_ROLES or role == "TENANT_ADMIN":
             return
 
         if role == ReservationService.CUSTOMER_ROLE:
@@ -422,7 +428,13 @@ class ReservationService:
             )
         )
 
-        if role in ReservationService.ADMIN_ROLES:
+        # El alcance de empresa debe validarse también en operaciones
+        # administrativas; no basta con comprobar el nombre del rol.
+        ReservationService._validate_reservation_access(
+            db, reservation, current_user,
+        )
+
+        if role in ReservationService.ADMIN_ROLES or role == "TENANT_ADMIN":
             return
 
         if role == ReservationService.MANAGER_ROLE:
@@ -843,6 +855,13 @@ class ReservationService:
         )
 
 
+        if current_user.tenant_id is None:
+            raise PermissionError("Usuario sin empresa asignada.")
+        query = query.filter(
+            Reservation.tenant_id == current_user.tenant_id,
+            Branch.tenant_id == current_user.tenant_id,
+        )
+
         effective_branch_id = (
             ReservationService
             ._resolve_list_branch_scope(
@@ -1195,6 +1214,10 @@ class ReservationService:
                 "Esta operación corresponde al cliente."
             )
 
+        branch = db.query(Branch).filter(Branch.id == branch_id, Branch.is_active.is_(True)).first()
+        if current_user.tenant_id is None or branch is None or branch.tenant_id != current_user.tenant_id:
+            raise PermissionError("No tienes acceso a reservas de esta sucursal.")
+
         reservation = (
             ReservationService._base_query(db)
             .filter(
@@ -1310,6 +1333,9 @@ class ReservationService:
                     )
                     .first()
                 )
+
+                if variant is not None and variant.product.tenant_id != reservation.tenant_id:
+                    raise LookupError("La variante no pertenece a la empresa de esta reserva.")
 
                 if variant is None:
                     raise LookupError(
@@ -1633,6 +1659,15 @@ class ReservationService:
             )
 
 
+        # SaaS: la identidad, el cliente y la sucursal deben pertenecer
+        # explícitamente a la misma empresa antes de generar una reserva.
+        if (
+            current_user.tenant_id is None
+            or customer.tenant_id != current_user.tenant_id
+            or branch.tenant_id != current_user.tenant_id
+        ):
+            raise PermissionError("El cliente y la sucursal deben pertenecer a tu empresa.")
+
         # =================================================
         # EXPIRACIÓN
         # =================================================
@@ -1656,6 +1691,30 @@ class ReservationService:
             .with_for_update()
             .one()
         )
+
+        # CU70: el mismo UUID con el mismo contenido devuelve la reserva
+        # previamente creada; UUID reutilizado con otro contenido se rechaza.
+        operation_id = str(data.client_operation_id) if data.client_operation_id else None
+        operation_hash = None
+        if operation_id:
+            operation_hash = reservation_operation_fingerprint(
+                branch_id=data.branch_id,
+                customer_id=customer_id,
+                items=data.items,
+                notes=data.notes,
+            )
+            previous = db.query(Reservation).filter(
+                Reservation.client_operation_id == operation_id
+            ).first()
+            if previous is not None:
+                if (previous.customer_id != customer_id
+                        or previous.tenant_id != branch.tenant_id):
+                    raise PermissionError("El identificador de operación pertenece a otra cuenta.")
+                if previous.client_operation_hash != operation_hash:
+                    raise ValueError("El UUID ya se utilizó con datos diferentes.")
+                return ReservationService._serialize(
+                    ReservationService._get_reservation(db, previous.id)
+                )
 
         existing_pending = (
             db.query(Reservation)
@@ -1716,6 +1775,11 @@ class ReservationService:
 
                 customer_id=
                     customer.id,
+
+                client_operation_id=operation_id,
+                client_operation_hash=operation_hash,
+
+                tenant_id=branch.tenant_id,
 
                 branch_id=
                     branch.id,
@@ -1820,6 +1884,9 @@ class ReservationService:
                     .first()
                 )
 
+
+                if variant is not None and variant.product.tenant_id != branch.tenant_id:
+                    raise LookupError("La variante no pertenece a esta empresa.")
 
                 if variant is None:
 
@@ -1926,6 +1993,11 @@ class ReservationService:
                 )
 
 
+            # Registrar el aviso PENDING en la misma transacción que la reserva.
+            # El servicio usa dedupe_key y evita avisos duplicados.
+            NotificationService.notify_reservation_status(
+                db, reservation=reservation, status="PENDING"
+            )
             db.commit()
 
 
@@ -3154,6 +3226,11 @@ class ReservationService:
                 ==
                 "COMPLETED"
             ):
+
+                raise ValueError(
+                    "Para completar una reserva debes registrar el cobro "
+                    "en Punto de venta > Cobrar reserva."
+                )
 
                 reservation.status = (
                     "COMPLETED"

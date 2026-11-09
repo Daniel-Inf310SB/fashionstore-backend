@@ -70,6 +70,8 @@ def get_product_images(
     ),
 ):
 
+    _require_cu58_product_owner(db, current_user, product_id)
+
     try:
         items = (
             ProductImageService
@@ -128,6 +130,8 @@ async def upload_product_image(
         require_products_manage
     ),
 ):
+
+    _require_cu58_product_owner(db, current_user, product_id)
 
     if (
         file.content_type
@@ -255,6 +259,8 @@ def update_product_image(
     ),
 ):
 
+    _require_cu58_image_owner(db, current_user, image_id)
+
     try:
         return (
             ProductImageService
@@ -298,6 +304,8 @@ def delete_product_image(
     ),
 ):
 
+    _require_cu58_image_owner(db, current_user, image_id)
+
     try:
         public_id = (
             ProductImageService
@@ -335,3 +343,27 @@ def delete_product_image(
         "message":
             "Imagen eliminada correctamente."
     }
+# CU58: las rutas hijas comprueban propiedad ANTES de consultar, subir o modificar.
+from app.models.product import Product
+from app.models.product_image import ProductImage
+from app.models.product_variant import ProductVariant
+
+def _require_cu58_product_owner(db, actor, product_id):
+    if actor.tenant_id is None:
+        raise HTTPException(status_code=403, detail="Usuario sin empresa.")
+    if db.query(Product.id).filter(Product.id == product_id, Product.tenant_id == actor.tenant_id).first() is None:
+        raise HTTPException(status_code=404, detail="Producto no encontrado.")
+
+def _require_cu58_image_owner(db, actor, image_id):
+    if actor.tenant_id is None:
+        raise HTTPException(status_code=403, detail="Usuario sin empresa.")
+    if (db.query(ProductImage.id).join(Product, Product.id == ProductImage.product_id)
+        .filter(ProductImage.id == image_id, Product.tenant_id == actor.tenant_id).first() is None):
+        raise HTTPException(status_code=404, detail="Imagen no encontrada.")
+
+def _require_cu58_variant_owner(db, actor, variant_id):
+    if actor.tenant_id is None:
+        raise HTTPException(status_code=403, detail="Usuario sin empresa.")
+    if (db.query(ProductVariant.id).join(Product, Product.id == ProductVariant.product_id)
+        .filter(ProductVariant.id == variant_id, Product.tenant_id == actor.tenant_id).first() is None):
+        raise HTTPException(status_code=404, detail="Variante no encontrada.")
